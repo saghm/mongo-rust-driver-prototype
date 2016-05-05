@@ -297,6 +297,70 @@ impl Collection {
                                             CommandType::FindOneAndUpdate)
     }
 
+    /// Runs a "map-reduce" query on the collection.
+    ///
+    /// # Arguments
+    ///
+    /// `map` - A JavaScript function that selects the data to be transformed.
+    /// `reduce` - A JavaScript function that transforms the selected data
+    /// `out` - The name of the collection to store the output into.
+    pub fn map_reduce(&self, map: &str, reduce: &str, out: &str) -> Result<bson::Document> {
+        let cmd_doc = doc! {
+            "mapReduce" => (self.name()),
+            "map" => (Bson::JavaScriptCode(String::from(map))),
+            "reduce" => (Bson::JavaScriptCode(String::from(reduce))),
+            "out" => (String::from(out))
+        };
+
+        self.db.command(cmd_doc, CommandType::MapReduce, None)
+    }
+
+    /// Runs a "map-reduce" query on the collection.
+    ///
+    /// # Arguments
+    ///
+    /// `map` - A JavaScript function that selects the data to be transformed.
+    /// `reduce` - A JavaScript function that transforms the selected data
+    /// `options` - Other options for the map-reduce query.
+    pub fn map_reduce_with_options(&self, map: &str, reduce: &str, options: MapReduceOptions) -> Result<bson::Document> {
+        let mut cmd_doc = doc! {
+            "mapReduce" => (self.name()),
+            "map" => (Bson::JavaScriptCode(String::from(map))),
+            "reduce" => (Bson::JavaScriptCode(String::from(reduce)))
+        };
+
+        if let Some(finalize) = options.finalize {
+            cmd_doc.insert("finalize", finalize);
+        }
+
+        match options.out {
+            MapReduceOutOption::Action(ref out) => cmd_doc.insert("out", Bson::Document(out.clone())),
+            MapReduceOutOption::Collection(ref out) => cmd_doc.insert("out", out),
+        };
+
+        if let Some(query) = options.query {
+            cmd_doc.insert("query", query);
+        }
+
+        if let Some(sort) = options.sort {
+            cmd_doc.insert("sort", sort);
+        }
+
+        if let Some(limit) = options.limit {
+            cmd_doc.insert("limit", limit);
+        }
+
+        if let Some(scope) = options.scope {
+            cmd_doc.insert("scope", scope);
+        }
+
+        cmd_doc.insert("jsMode", options.js_mode);
+        cmd_doc.insert("verbose", options.verbose);
+        cmd_doc.insert("bypassDocumentValidation", options.bypass_document_validation);
+
+        self.db.command(cmd_doc, CommandType::MapReduce, None)
+
+}
     fn get_unordered_batches(requests: Vec<WriteModel>) -> Vec<Batch> {
         let mut inserts = vec![];
         let mut deletes = vec![];

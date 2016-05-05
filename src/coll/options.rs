@@ -163,6 +163,58 @@ pub struct UpdateOptions {
 
 pub type ReplaceOptions = UpdateOptions;
 
+// Option for map-reduce "out" argument.
+#[derive(Clone)]
+pub enum MapReduceOutOption {
+    Action(bson::Document),
+    Collection(String),
+}
+
+// Options for map-reduce queries.
+#[derive(Clone)]
+pub struct MapReduceOptions {
+    pub finalize: Option<Bson>,
+    pub out: MapReduceOutOption,
+    pub query: Option<bson::Document>,
+    pub sort: Option<bson::Document>,
+    pub limit: Option<i32>,
+    pub scope: Option<bson::Document>,
+    pub js_mode: bool,
+    pub verbose: bool,
+    pub bypass_document_validation: bool,
+}
+
+impl MapReduceOptions {
+    pub fn new(out: String) -> Self {
+        MapReduceOptions {
+            finalize: None,
+            out: MapReduceOutOption::Collection(out),
+            query: None,
+            sort: None,
+            limit: None,
+            scope: None,
+            js_mode: false,
+            verbose: false,
+            bypass_document_validation: false,
+        }
+    }
+
+    pub fn with_action(out: bson::Document) -> Self {
+        MapReduceOptions {
+            finalize: None,
+            out: MapReduceOutOption::Action(out),
+            query: None,
+            sort: None,
+            limit: None,
+            scope: None,
+            js_mode: false,
+            verbose: false,
+            bypass_document_validation: false,
+        }
+    }
+}
+
+
 impl AggregateOptions {
     pub fn new() -> AggregateOptions {
         AggregateOptions {

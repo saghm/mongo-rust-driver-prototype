@@ -704,3 +704,177 @@ fn drop_all_indexes() {
 
     assert_eq!(1, results.len());
 }
+
+#[test]
+fn simple_map_reduce() {
+    let client = Client::connect("localhost", 27017).unwrap();
+    let db = client.db("test");
+    let coll1 = db.collection("simple_map_reduce_1");
+    let coll2 = db.collection("simple_map_reduce_2");
+
+    coll1.drop().expect("Failed to drop database.");
+    coll2.drop().expect("Failed to drop database.");
+
+    let doc1 = doc! { "title" => "Jaws" };
+    let doc2 = doc! { "title" => "Back to the Future" };
+    let doc3 = doc! { "title" => "12 Angry Men" };
+
+    coll1.insert_many(vec![doc1.clone(), doc2.clone(), doc3.clone()], None)
+        .expect("Failed to insert documents");
+
+    let map = r#"function() { emit("movies", this.title); }"#;
+    let reduce = "function(key, values) { return { titles: values }; }";
+
+    let result = coll1.map_reduce(map, reduce, "simple_map_reduce_2").unwrap();
+
+    match result.get("result") {
+        Some(&Bson::String(ref s)) => assert_eq!("simple_map_reduce_2", s),
+        _ => panic!("Expected Bson::String!")
+    };
+
+
+    let counts = match result.get("counts") {
+        Some(&Bson::Document(ref d)) => d.clone(),
+        _ => panic!("Expected Bson::Document")
+    };
+
+    match counts.get("input") {
+        Some(&Bson::I32(i)) => assert_eq!(3, i),
+        Some(&Bson::I64(i)) => assert_eq!(3, i),
+        _ => panic!("Expected a number!")
+    };
+
+    match counts.get("emit") {
+        Some(&Bson::I32(i)) => assert_eq!(3, i),
+        Some(&Bson::I64(i)) => assert_eq!(3, i),
+        _ => panic!("Expected a number!")
+    };
+
+    match counts.get("reduce") {
+        Some(&Bson::I32(i)) => assert_eq!(1, i),
+        Some(&Bson::I64(i)) => assert_eq!(1, i),
+        _ => panic!("Expected a number!")
+    };
+
+    match counts.get("output") {
+        Some(&Bson::I32(i)) => assert_eq!(1, i),
+        Some(&Bson::I64(i)) => assert_eq!(1, i),
+        _ => panic!("Expected a number!")
+    };
+
+    let mut cursor = coll2.find(None, None).expect("Failed to execute find command.");
+    let results = cursor.next_n(1).expect("Failed to retrieve documents.");
+
+    match results[0].get("_id") {
+        Some(&Bson::String(ref id)) => assert_eq!("movies", id),
+        _ => panic!("Expected Bson::String!")
+    };
+
+    let titles = match results[0].get("value") {
+        Some(&Bson::Document(ref v)) => v.clone(),
+        _ => panic!("Expected Bson::Document!")
+    };
+
+    match titles.get("titles") {
+        Some(&Bson::Array(ref a)) => assert_eq!(&vec![Bson::String(String::from("Jaws")),
+                                                      Bson::String(String::from("Back to the Future")),
+                                                      Bson::String(String::from("12 Angry Men")),], a),
+        _ => panic!("Expected Bson::Document!")
+    };
+
+    assert!(cursor.next().is_none());
+}
+
+#[test]
+fn complex_map_reduce() {
+    let client = Client::connect("localhost", 27017).unwrap();
+    let db = client.db("test");
+    let coll = db.collection("complex_map_reduce");
+
+    coll.drop().expect("Failed to drop database.");
+
+    for i in 0..10 {
+        coll.insert_one(doc! { "x" => (10 - i) }, None).unwrap();
+    }
+
+    let mut opts = MapReduceOptions::with_action(doc! { "inline" => 1 });
+    opts.query = Some(doc! { "x" => { "$mod" => [2, 1] } });
+    opts.sort = Some(doc! { "x" => 1 });
+    opts.limit = Some(3);
+
+    let map = r#"function() { emit("x", this.x); emit("x_squared", this.x * this.x); }"#;
+    let reduce = "function(key, values) { return values.reduce(function(x, y) { return x + y; }); }";
+
+    let result = coll.map_reduce_with_options(map, reduce, opts).unwrap();
+
+    let mut results = match result.get("results") {
+        Some(&Bson::Array(ref a)) => a.clone(),
+        _ => panic!("Expected Bson::String!")
+    };
+
+    assert_eq!(2, results.len());
+
+    let doc2 = match results.pop() {
+        Some(Bson::Document(d)) => d,
+        _ => panic!("Expected Bson::Document!")
+    };
+
+    match doc2.get("_id") {
+        Some(&Bson::String(ref s)) => assert_eq!("x_squared", s),
+        _ => panic!("Expected Bson::String!")
+    };
+
+    match doc2.get("value") {
+        Some(&Bson::I32(i)) => assert_eq!(35, i),
+        Some(&Bson::I64(i)) => assert_eq!(35, i),
+        Some(&Bson::FloatingPoint(f)) => assert_eq!(35, f as i32),
+        s => panic!("Expected a number! {:#?}", s)
+    };
+
+
+    let doc1 = match results.pop() {
+        Some(Bson::Document(d)) => d,
+        _ => panic!("Expected Bson::Document!")
+    };
+
+    match doc1.get("_id") {
+        Some(&Bson::String(ref s)) => assert_eq!("x", s),
+        _ => panic!("Expected Bson::String!")
+    };
+
+    match doc1.get("value") {
+        Some(&Bson::I32(i)) => assert_eq!(9, i),
+        Some(&Bson::I64(i)) => assert_eq!(9, i),
+        Some(&Bson::FloatingPoint(f)) => assert_eq!(9, f as i32),
+        _ => panic!("Expected a number!")
+    };
+
+    let counts = match result.get("counts") {
+        Some(&Bson::Document(ref d)) => d.clone(),
+        _ => panic!("Expected Bson::Document")
+    };
+
+    match counts.get("input") {
+        Some(&Bson::I32(i)) => assert_eq!(3, i),
+        Some(&Bson::I64(i)) => assert_eq!(3, i),
+        _ => panic!("Expected a number!")
+    };
+
+    match counts.get("emit") {
+        Some(&Bson::I32(i)) => assert_eq!(6, i),
+        Some(&Bson::I64(i)) => assert_eq!(6, i),
+        _ => panic!("Expected a number!")
+    };
+
+    match counts.get("reduce") {
+        Some(&Bson::I32(i)) => assert_eq!(2, i),
+        Some(&Bson::I64(i)) => assert_eq!(2, i),
+        _ => panic!("Expected a number!")
+    };
+
+    match counts.get("output") {
+        Some(&Bson::I32(i)) => assert_eq!(2, i),
+        Some(&Bson::I64(i)) => assert_eq!(2, i),
+        _ => panic!("Expected a number!")
+    };
+}
