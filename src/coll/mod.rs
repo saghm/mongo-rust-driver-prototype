@@ -82,6 +82,60 @@ impl Collection {
         self.db.drop_collection(&self.name()[..])
     }
 
+    pub fn map_reduce(&self,
+                      func: MapReduceFn, target: Option<MapReduceOutput>,
+                      query: Option<MapReduceQueryOptions>,
+                      options: Option<MapReduceOptions>,
+                      preference: Option<ReadPreference>) -> Result<bson::Document> {
+
+        let mut spec = bson::Document::new();
+
+        spec.insert("mapReduce", self.name());
+        spec.insert("map", func.mapper);
+        spec.insert("reduce", func.reducer);
+
+        if let Some(finalizer) = func.finalizer {
+            spec.insert("finalize", finalizer);
+        }
+
+        spec.insert("out", target.unwrap_or(MapReduceOutput::default()));
+
+        if let Some(query) = query {
+            if let Some(query) = query.query {
+                spec.insert("query", query);
+            }
+
+            if let Some(sort) = query.sort {
+                spec.insert("sort", sort);
+            }
+
+            if let Some(limit) = query.limit {
+                spec.insert("limit", limit);
+            }
+        }
+
+
+        if let Some(options) = options {
+            if let Some(scope) = options.scope {
+                spec.insert("scope", scope);
+            }
+
+            if let Some(js_mode) = options.scope {
+                spec.insert("jsMode", js_mode);
+            }
+
+            if let Some(verbose) = options.verbose {
+                spec.insert("verbose", verbose);
+            }
+
+            if let Some(bypass_validation) = options.bypass_validation {
+                spec.insert("bypassDocumentValidation", bypass_validation);
+            }
+        }
+
+        self.db.command(spec, CommandType::MapReduce, preference)
+    }
+
     /// Runs an aggregation framework pipeline.
     pub fn aggregate(&self, pipeline: Vec<bson::Document>,
                      options: Option<AggregateOptions>) -> Result<Cursor> {

@@ -3,6 +3,7 @@ use Error::{self, ArgumentError};
 use Result;
 
 use bson::{self, Bson};
+use std::default::Default;
 use std::ascii::AsciiExt;
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -60,6 +61,13 @@ impl ReadPreference {
         doc.insert("tag_sets", Bson::Array(bson_tag_sets));
         doc
     }
+}
+
+///
+/// Set the default for ReadPreference to be Primary (ReadMode::Primary).
+///
+impl Default for ReadPreference {
+    fn default() -> ReadPreference { ReadPreference::new(ReadMode::Primary, None) }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

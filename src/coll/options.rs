@@ -5,6 +5,9 @@ use common::{ReadPreference, WriteConcern};
 use Error::ArgumentError;
 use Result;
 
+use std::convert::Into;
+use std::default::Default;
+
 /// Describes the type of cursor to return on collection queries.
 #[derive(Clone, PartialEq, Eq)]
 pub enum CursorType {
@@ -58,6 +61,95 @@ pub struct AggregateOptions {
     pub max_time_ms: Option<i64>,
     pub read_preference: Option<ReadPreference>,
 }
+
+///
+/// MapReduceFn structs.
+///
+#[derive(Clone)]
+pub struct MapReduceFn {
+    pub mapper: bson::Bson, // bson::Bson::JavaScriptCode
+    pub reducer: bson::Bson, // bson::Bson::JavaScriptCode
+    pub finalizer: Option<bson::Bson> // Option<bson::Bson::JavaScriptCode>
+}
+
+impl MapReduceFn {
+
+    pub fn new(mapper: &'static str, reducer: &'static str) -> MapReduceFn {
+
+        MapReduceFn {
+            mapper: Bson::JavaScriptCode(String::from(mapper)),
+            reducer: Bson::JavaScriptCode(String::from(reducer)),
+            finalizer: None,
+        }
+    }
+
+
+    pub fn with_finalizer(mapper: &'static str, reducer: &'static str,
+                          finalizer: &'static str) -> MapReduceFn {
+
+        let code = Bson::JavaScriptCode(String::from(finalizer));
+
+        MapReduceFn {
+            mapper: Bson::JavaScriptCode(String::from(mapper)),
+            reducer: Bson::JavaScriptCode(String::from(reducer)),
+            finalizer: Some(code),
+        }
+    }
+
+}
+
+#[derive(Clone)]
+pub struct MapReduceOptions {
+    pub scope: Option<bool>,
+    pub js_mode: Option<bool>,
+    pub verbose: Option<bool>,
+    pub bypass_validation: Option<bool>
+}
+
+#[derive(Clone)]
+pub enum MapReduceOutput {
+    Inline,
+    Action(bson::Document),
+    Collection(String),
+}
+
+impl Default for MapReduceOutput {
+    fn default () -> MapReduceOutput { MapReduceOutput::Inline }
+}
+
+impl Into<bson::Bson> for MapReduceOutput {
+    fn into(self) -> bson::Bson {
+        match self {
+            MapReduceOutput::Inline => bson::Bson::Document(doc! { "inline" => 1 }),
+            MapReduceOutput::Action(out) => bson::Bson::Document(out),
+            MapReduceOutput::Collection(out) => bson::Bson::String(out)
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct MapReduceQueryOptions {
+    pub query: Option<bson::Document>,
+    pub sort: Option<bson::Document>,
+    pub limit: Option<u32>
+}
+
+impl Default for MapReduceQueryOptions {
+    fn default() -> MapReduceQueryOptions {
+        MapReduceQueryOptions {
+            query: None, sort: None, limit: None
+        }
+    }
+}
+
+impl MapReduceQueryOptions {
+    pub fn with_limit(limit: u32) -> MapReduceQueryOptions {
+        MapReduceQueryOptions {
+            query: None, sort: None, limit: Some(limit)
+        }
+    }
+}
+
 
 /// Options for count queries.
 #[derive(Clone)]

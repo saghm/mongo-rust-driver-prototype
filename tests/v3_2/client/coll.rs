@@ -3,7 +3,31 @@ use bson::Bson;
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
 use mongodb::coll::options::{FindOptions, FindOneAndUpdateOptions,
-                             IndexModel, IndexOptions, ReturnDocument};
+                             IndexModel, IndexOptions, ReturnDocument,
+                             MapReduceFn, MapReduceOptions, MapReduceOutput, MapReduceQueryOptions};
+
+#[test]
+fn map_reduce() {
+    let client = Client::connect("localhost", 27017).unwrap();
+
+    let db = client.db("test");
+    let coll = db.collection("map_reduce");
+
+    coll.drop().expect("Failed to drop database");
+
+    // Insert some documents for testing
+    // Using example case from https://docs.mongodb.com/manual/core/map-reduce/
+    let docs = vec![
+        doc! { "cust_id" => "A123", "amount" => 500, "status" => "A" },
+        doc! { "cust_id" => "A123", "amount" => 250, "status" => "A"},
+        doc! { "cust_id" => "B212", "amount" => 200, "status" => "A"},
+        doc! { "cust_id" => "A123", "amount" => 300, "status" => "D"}
+    ];
+
+    coll.insert_many(docs, None).expect("Failed to insert test documents");
+
+    // TODO: tests
+}
 
 #[test]
 fn find_sorted() {
