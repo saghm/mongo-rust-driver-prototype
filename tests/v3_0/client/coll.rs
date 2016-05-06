@@ -2,7 +2,7 @@ use bson::Bson;
 
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
-use mongodb::coll::options::{FindOptions, FindOneAndUpdateOptions,
+use mongodb::coll::options::{FindOptions, FindOneAndUpdateOptions, MapReduceOptions,
                              IndexModel, IndexOptions, ReturnDocument};
 
 #[test]
