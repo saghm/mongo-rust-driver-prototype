@@ -82,6 +82,23 @@ impl Collection {
         self.db.drop_collection(&self.name()[..])
     }
 
+
+    ///
+    /// Run map reduce mongodb operations.
+    ///
+    /// This handle pretty much any case in the specs
+    /// https://docs.mongodb.com/manual/reference/command/mapReduce/.
+    ///
+    /// I'm trying to make it as structurable as possible.
+    ///
+    /// # Arguments
+    ///
+    /// `func`   - Map reduce function (mapper, reducer, finalizer as an option).
+    /// `target` - Optional target of the map reduce. It can be `inline`, `collection` or `action`. (default: `inline`)
+    /// `query`  - Optional query of the map reduce. We can specify `query` itself, sorting the results or limit it.
+    /// `options` - Optional options to be used. It includes `scope`, `js_mode`, `verbose` and `bypass_validation`.
+    /// `preference` - Read preference of the target collection. (default: `primary`)
+    ///
     pub fn map_reduce(&self,
                       func: MapReduceFn, target: Option<MapReduceOutput>,
                       query: Option<MapReduceQueryOptions>,
@@ -98,7 +115,7 @@ impl Collection {
             spec.insert("finalize", finalizer);
         }
 
-        spec.insert("out", target.unwrap_or(MapReduceOutput::default()));
+        spec.insert("out", target.unwrap_or(MapReduceOutput::default().into()));
 
         if let Some(query) = query {
             if let Some(query) = query.query {

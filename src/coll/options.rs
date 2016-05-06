@@ -63,7 +63,12 @@ pub struct AggregateOptions {
 }
 
 ///
-/// MapReduceFn structs.
+/// MapReduce JS function structs.
+///
+/// Any "basic main" JS function are being declared in here.
+/// Note that we can't target bson::Bson::JavaScriptCode directly, since
+/// Rust didn't support variant as a type
+/// unless we declare bson::Bson::JavaScriptCode as struct in `bson` crate .
 ///
 #[derive(Clone)]
 pub struct MapReduceFn {
@@ -74,6 +79,11 @@ pub struct MapReduceFn {
 
 impl MapReduceFn {
 
+    /// Create new `MapReduceFn` with its mapper and reducer function.
+    ///
+    /// `mapper`  - map function of map reduce.
+    /// `reducer` - reduce function of map reduce.
+    ///
     pub fn new(mapper: &'static str, reducer: &'static str) -> MapReduceFn {
 
         MapReduceFn {
@@ -84,6 +94,14 @@ impl MapReduceFn {
     }
 
 
+    ///
+    /// Create map reduce function with its finalizer.
+    ///
+    ///
+    /// `mapper`    - map function of map reduce.
+    /// `reducer`   - reduce function of map reduce.
+    /// `finalizer` - finalizer function of map reduce.
+    ///
     pub fn with_finalizer(mapper: &'static str, reducer: &'static str,
                           finalizer: &'static str) -> MapReduceFn {
 
@@ -98,6 +116,11 @@ impl MapReduceFn {
 
 }
 
+///
+/// MapReduce rarely being used options.
+///
+/// https://docs.mongodb.com/manual/reference/command/mapReduce/
+///
 #[derive(Clone)]
 pub struct MapReduceOptions {
     pub scope: Option<bool>,
@@ -106,6 +129,14 @@ pub struct MapReduceOptions {
     pub bypass_validation: Option<bool>
 }
 
+
+///
+/// Map reduce operation output target.
+///
+/// Output can be `inlined`, `collection`, or `action`.
+///
+/// https://docs.mongodb.com/manual/reference/command/mapReduce/#mapreduce-out-cmd
+///
 #[derive(Clone)]
 pub enum MapReduceOutput {
     Inline,
@@ -113,10 +144,16 @@ pub enum MapReduceOutput {
     Collection(String),
 }
 
+///
+/// Default value of MapReduceOutput (default: MapReduceOutput::Inline)
+///
 impl Default for MapReduceOutput {
     fn default () -> MapReduceOutput { MapReduceOutput::Inline }
 }
 
+///
+/// Into converter from MapReduceOutput into bson::Bson.
+///
 impl Into<bson::Bson> for MapReduceOutput {
     fn into(self) -> bson::Bson {
         match self {
@@ -127,6 +164,9 @@ impl Into<bson::Bson> for MapReduceOutput {
     }
 }
 
+///
+/// MapReduce query options.
+///
 #[derive(Clone)]
 pub struct MapReduceQueryOptions {
     pub query: Option<bson::Document>,
@@ -134,6 +174,10 @@ pub struct MapReduceQueryOptions {
     pub limit: Option<u32>
 }
 
+///
+/// Default options for MapReduceQueryOptions.
+/// Mostly None.
+///
 impl Default for MapReduceQueryOptions {
     fn default() -> MapReduceQueryOptions {
         MapReduceQueryOptions {
@@ -142,7 +186,16 @@ impl Default for MapReduceQueryOptions {
     }
 }
 
+///
+/// MapReduce query options impl.
+///
 impl MapReduceQueryOptions {
+
+    ///
+    /// Create `MapReduceQueryOptions` structs with limit options.
+    ///
+    /// `limit` - Limit the size of map reduce results.
+    ///
     pub fn with_limit(limit: u32) -> MapReduceQueryOptions {
         MapReduceQueryOptions {
             query: None, sort: None, limit: Some(limit)
