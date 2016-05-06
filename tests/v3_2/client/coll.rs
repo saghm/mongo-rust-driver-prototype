@@ -27,6 +27,21 @@ fn map_reduce() {
     coll.insert_many(docs, None).expect("Failed to insert test documents");
 
     // TODO: tests
+    let results = coll.map_reduce(
+        MapReduceFn::new(
+            r#"function() { emit( this.cust_id, this.amount ); }"#,
+            r#"function(key, values) { return Array.sum( values ); }"#
+        ),
+        Some(MapReduceOutput::Inline),
+        Some(MapReduceQueryOptions {
+            query: Some(doc! {
+                "status" => "A"
+            }),
+            sort: None, limit: None
+        }),
+        None,
+        None
+    ).expect("Error when doing map reduce");
 }
 
 #[test]
