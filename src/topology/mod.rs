@@ -604,7 +604,13 @@ impl TopologyDescription {
     // Sets the correct replica set topology type.
     fn check_if_has_primary(&mut self) {
         for server in self.servers.values() {
-            let stype = server.description.read().unwrap().server_type;
+            let read_guard = match server.description.try_read() {
+                Ok(guard) => guard,
+                Err(_) => continue,
+            };
+            
+            let stype = read_guard.server_type;
+
             if stype == ServerType::RSPrimary {
                 self.topology_type = TopologyType::ReplicaSetWithPrimary;
                 return;
