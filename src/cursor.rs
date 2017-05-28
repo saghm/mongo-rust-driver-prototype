@@ -4,12 +4,13 @@
 //! # #[macro_use] extern crate bson;
 //! # extern crate mongodb;
 //! #
-//! # use mongodb::{Client, ThreadedClient};
+//! # use mongodb::{Connector, ThreadedClient};
 //! # use mongodb::db::ThreadedDatabase;
 //! # use bson::Bson;
 //! #
 //! # fn main() {
-//! # let client = Client::connect("localhost", 27017).unwrap();
+//! # let connector = Connector::new();
+//! # let client = connector.connect("localhost", 27017).unwrap();
 //! # let coll = client.db("test").collection("info");
 //! #
 //! coll.insert_one(doc!{ "spirit_animal" => "ferret" }, None).unwrap();
@@ -122,7 +123,11 @@ impl Cursor {
     fn get_bson_and_cid_from_message(message: Message)
                                      -> Result<(bson::Document, VecDeque<bson::Document>, i64)> {
         match message {
-            Message::OpReply { cursor_id: cid, documents: docs, .. } => {
+            Message::OpReply {
+                cursor_id: cid,
+                documents: docs,
+                ..
+            } => {
                 let mut v = VecDeque::new();
                 let mut out_doc = doc!{};
 
@@ -168,12 +173,13 @@ impl Cursor {
                     if let Some(&Bson::Array(ref batch)) = cursor.get("firstBatch") {
 
                         // Extract first batch documents
-                        let map = batch.iter()
+                        let map = batch
+                            .iter()
                             .filter_map(|bdoc| if let Bson::Document(ref doc) = *bdoc {
-                                Some(doc.clone())
-                            } else {
-                                None
-                            })
+                                            Some(doc.clone())
+                                        } else {
+                                            None
+                                        })
                             .collect();
 
                         return Ok((first, map, *id, ns.to_owned()));
@@ -305,12 +311,12 @@ impl Cursor {
 
         if cmd_type != CommandType::Suppressed {
             let hook_result = client.run_start_hooks(&CommandStarted {
-                command: command,
-                database_name: db_name,
-                command_name: String::from(cmd_name),
-                request_id: req_id as i64,
-                connection_string: connstring.clone(),
-            });
+                                                         command: command,
+                                                         database_name: db_name,
+                                                         command_name: String::from(cmd_name),
+                                                         request_id: req_id as i64,
+                                                         connection_string: connstring.clone(),
+                                                     });
 
             if hook_result.is_err() {
                 return Err(Error::EventListenerError(None));
@@ -367,28 +373,28 @@ impl Cursor {
 
         if cmd_type != CommandType::Suppressed {
             let _hook_result = client.run_completion_hooks(&CommandResult::Success {
-                duration: fin_time - init_time,
-                reply: reply,
-                command_name: String::from(cmd_name),
-                request_id: req_id as i64,
-                connection_string: connstring,
-            });
+                                                               duration: fin_time - init_time,
+                                                               reply: reply,
+                                                               command_name: String::from(cmd_name),
+                                                               request_id: req_id as i64,
+                                                               connection_string: connstring,
+                                                           });
         }
 
-        let read_preference =
-            read_pref.unwrap_or_else(|| ReadPreference::new(ReadMode::Primary, None));
+        let read_preference = read_pref
+            .unwrap_or_else(|| ReadPreference::new(ReadMode::Primary, None));
 
         Ok(Cursor {
-            client: client,
-            namespace: namespace,
-            batch_size: options.batch_size.unwrap_or(DEFAULT_BATCH_SIZE),
-            cursor_id: cursor_id,
-            limit: options.limit.unwrap_or(0) as i32,
-            count: 0,
-            buffer: buf,
-            read_preference: read_preference,
-            cmd_type: cmd_type.clone(),
-        })
+               client: client,
+               namespace: namespace,
+               batch_size: options.batch_size.unwrap_or(DEFAULT_BATCH_SIZE),
+               cursor_id: cursor_id,
+               limit: options.limit.unwrap_or(0) as i32,
+               count: 0,
+               buffer: buf,
+               read_preference: read_preference,
+               cmd_type: cmd_type.clone(),
+           })
     }
 
     fn get_from_stream(&mut self) -> Result<()> {
@@ -401,19 +407,22 @@ impl Cursor {
                                              self.batch_size,
                                              self.cursor_id);
 
-        let index = self.namespace.rfind('.').unwrap_or_else(|| self.namespace.len());
+        let index = self.namespace
+            .rfind('.')
+            .unwrap_or_else(|| self.namespace.len());
         let db_name = String::from(&self.namespace[..index]);
         let cmd_name = String::from("get_more");
         let connstring = format!("{}", try!(socket.get_ref().peer_addr()));
 
         if self.cmd_type != CommandType::Suppressed {
-            let hook_result = self.client.run_start_hooks(&CommandStarted {
-                command: doc! { "cursor_id" => (self.cursor_id) },
-                database_name: db_name,
-                command_name: cmd_name.clone(),
-                request_id: req_id as i64,
-                connection_string: connstring.clone(),
-            });
+            let hook_result = self.client
+                .run_start_hooks(&CommandStarted {
+                                     command: doc! { "cursor_id" => (self.cursor_id) },
+                                     database_name: db_name,
+                                     command_name: cmd_name.clone(),
+                                     request_id: req_id as i64,
+                                     connection_string: connstring.clone(),
+                                 });
 
             if hook_result.is_err() {
                 return Err(Error::EventListenerError(None));

@@ -3,7 +3,7 @@ use error::Error::{self, ArgumentError, OperationError};
 use error::Result;
 
 use connstring::Host;
-use stream::{Stream, StreamConnector};
+use stream::{Stream, ConnectMethod};
 
 use bufstream::BufStream;
 use std::sync::{Arc, Condvar, Mutex};
@@ -21,7 +21,7 @@ pub struct ConnectionPool {
     // A condition variable used for threads waiting for the pool
     // to be repopulated with available connections.
     wait_lock: Arc<Condvar>,
-    stream_connector: StreamConnector,
+    connect_method: ConnectMethod,
 }
 
 struct Pool {
@@ -73,22 +73,22 @@ impl Drop for PooledStream {
 
 impl ConnectionPool {
     /// Returns a connection pool with a default size.
-    pub fn new(host: Host, connector: StreamConnector) -> ConnectionPool {
+    pub fn new(host: Host, connector: ConnectMethod) -> ConnectionPool {
         ConnectionPool::with_size(host, connector, DEFAULT_POOL_SIZE)
     }
 
     /// Returns a connection pool with a specified capped size.
-    pub fn with_size(host: Host, connector: StreamConnector, size: usize) -> ConnectionPool {
+    pub fn with_size(host: Host, connector: ConnectMethod, size: usize) -> ConnectionPool {
         ConnectionPool {
             host: host,
             wait_lock: Arc::new(Condvar::new()),
             inner: Arc::new(Mutex::new(Pool {
-                len: Arc::new(ATOMIC_USIZE_INIT),
-                size: size,
-                sockets: Vec::with_capacity(size),
-                iteration: 0,
-            })),
-            stream_connector: connector,
+                                           len: Arc::new(ATOMIC_USIZE_INIT),
+                                           size: size,
+                                           sockets: Vec::with_capacity(size),
+                                           iteration: 0,
+                                       })),
+            connect_method: connector,
         }
     }
 
@@ -126,11 +126,11 @@ impl ConnectionPool {
             // Acquire available existing socket
             if let Some(stream) = locked.sockets.pop() {
                 return Ok(PooledStream {
-                    socket: Some(stream),
-                    pool: self.inner.clone(),
-                    wait_lock: self.wait_lock.clone(),
-                    iteration: locked.iteration,
-                });
+                              socket: Some(stream),
+                              pool: self.inner.clone(),
+                              wait_lock: self.wait_lock.clone(),
+                              iteration: locked.iteration,
+                          });
             }
 
             // Attempt to make a new connection
@@ -139,11 +139,11 @@ impl ConnectionPool {
                 let socket = try!(self.connect());
                 let _ = locked.len.fetch_add(1, Ordering::SeqCst);
                 return Ok(PooledStream {
-                    socket: Some(socket),
-                    pool: self.inner.clone(),
-                    wait_lock: self.wait_lock.clone(),
-                    iteration: locked.iteration,
-                });
+                              socket: Some(socket),
+                              pool: self.inner.clone(),
+                              wait_lock: self.wait_lock.clone(),
+                              iteration: locked.iteration,
+                          });
             }
 
             // Release lock and wait for pool to be repopulated
@@ -154,7 +154,8 @@ impl ConnectionPool {
 
     // Connects to a MongoDB server as defined by the initial configuration.
     fn connect(&self) -> Result<BufStream<Stream>> {
-        match self.stream_connector.connect(&self.host.host_name[..], self.host.port) {
+        match self.connect_method
+                  .connect(&self.host.host_name[..], self.host.port) {
             Ok(s) => Ok(BufStream::new(s)),
             Err(e) => Err(Error::from(e)),
         }

@@ -1,4 +1,4 @@
-use mongodb::stream::StreamConnector;
+use mongodb::stream::ConnectMethod;
 use mongodb::topology::{TopologyDescription, TopologyType};
 
 use std::fs;
@@ -15,7 +15,7 @@ fn sdam_single() {
         let path2 = path.unwrap().path();
         let filename = path2.to_string_lossy();
         if filename.ends_with(".json") {
-            let mut description = TopologyDescription::new(StreamConnector::default());
+            let mut description = TopologyDescription::new(ConnectMethod::default());
             description.topology_type = TopologyType::Single;
             run_suite(&filename, Some(description))
         }

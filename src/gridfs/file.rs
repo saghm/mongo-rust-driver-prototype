@@ -171,10 +171,10 @@ impl File {
     pub fn assert_mode(&self, mode: Mode) -> Result<()> {
         if self.mode != mode {
             return match self.mode {
-                Mode::Read => Err(ArgumentError(String::from("File is open for reading."))),
-                Mode::Write => Err(ArgumentError(String::from("File is open for writing."))),
-                Mode::Closed => Err(ArgumentError(String::from("File is closed."))),
-            };
+                       Mode::Read => Err(ArgumentError(String::from("File is open for reading."))),
+                       Mode::Write => Err(ArgumentError(String::from("File is open for writing."))),
+                       Mode::Closed => Err(ArgumentError(String::from("File is closed."))),
+                   };
         }
         Ok(())
     }
@@ -205,11 +205,13 @@ impl File {
 
                 let mut opts = IndexOptions::new();
                 opts.unique = Some(true);
-                try!(self.gfs.chunks.create_index(doc!{ "files_id" => 1, "n" => 1}, Some(opts)));
+                try!(self.gfs
+                         .chunks
+                         .create_index(doc!{ "files_id" => 1, "n" => 1}, Some(opts)));
             } else {
                 try!(self.gfs
-                    .chunks
-                    .delete_many(doc!{ "files_id" => (self.doc.id.clone()) }, None));
+                         .chunks
+                         .delete_many(doc!{ "files_id" => (self.doc.id.clone()) }, None));
             }
         }
 
@@ -322,8 +324,10 @@ impl File {
                     }
                 };
 
-                let result = arc_gfs.chunks
-                    .find_one(Some(doc!{"files_id" => (id), "n" => (next_chunk_num)}), None);
+                let result = arc_gfs
+                    .chunks
+                    .find_one(Some(doc!{"files_id" => (id), "n" => (next_chunk_num)}),
+                              None);
 
                 match result {
                     Ok(Some(doc)) => {
@@ -618,7 +622,7 @@ impl GfsFile {
             "chunkSize" => (self.chunk_size),
             "length" => (self.len),
             "md5" => (self.md5.to_owned()),
-            "uploadDate" => (self.upload_date.as_ref().unwrap().clone())
+            "uploadDate" => (self.upload_date.unwrap())
         };
 
         if self.name.is_some() {

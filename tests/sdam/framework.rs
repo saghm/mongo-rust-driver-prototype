@@ -1,8 +1,8 @@
-use mongodb::{Client, ThreadedClient};
+use mongodb::Connector;
 use mongodb::Error::OperationError;
-use mongodb::connstring::{self, ConnectionString};
+use mongodb::connstring::ConnectionString;
 use mongodb::topology::{Topology, TopologyDescription, TopologyType};
-use mongodb::stream::StreamConnector;
+use mongodb::stream::ConnectMethod;
 use mongodb::topology::monitor::IsMasterResult;
 use mongodb::topology::server::Server;
 
@@ -15,9 +15,8 @@ pub fn run_suite(file: &str, description: Option<TopologyDescription>) {
     let json = Value::from_file(file).unwrap();
     let suite = json.get_suite().unwrap();
 
-    let dummy_config = ConnectionString::new("i-dont-exist", 27017);
-    let dummy_client = Client::with_config(dummy_config, None, None).unwrap();
-    let connection_string = connstring::parse(&suite.uri).unwrap();
+    let dummy_client = Connector::new().connect("i-dont-exist", 27017).unwrap();
+    let connection_string = ConnectionString::parse(&suite.uri).unwrap();
 
     // For a standalone topology with multiple startup servers, the user
     // should pass in an unknown topology. For a base standalone topology,
@@ -29,12 +28,12 @@ pub fn run_suite(file: &str, description: Option<TopologyDescription>) {
     };
 
     let topology = if should_ignore_description {
-        Topology::new(connection_string.clone(), None, StreamConnector::default()).unwrap()
+        Topology::new(connection_string.clone(), None, ConnectMethod::default()).unwrap()
     } else {
         Topology::new(connection_string.clone(),
                       description,
-                      StreamConnector::default())
-            .unwrap()
+                      ConnectMethod::default())
+                .unwrap()
     };
 
     let top_description_arc = topology.description.clone();
@@ -48,7 +47,7 @@ pub fn run_suite(file: &str, description: Option<TopologyDescription>) {
                                  host.clone(),
                                  top_description_arc.clone(),
                                  false,
-                                 StreamConnector::default());
+                                 ConnectMethod::default());
         topology_description.servers.insert(host.clone(), server);
     }
 

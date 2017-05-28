@@ -5,7 +5,7 @@ use Error::{self, OperationError};
 use bson::oid;
 use connstring::Host;
 use pool::{ConnectionPool, PooledStream};
-use stream::StreamConnector;
+use stream::ConnectMethod;
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -93,15 +93,15 @@ impl FromStr for ServerType {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
-            "Standalone" => ServerType::Standalone,
-            "Mongos" => ServerType::Mongos,
-            "RSPrimary" => ServerType::RSPrimary,
-            "RSSecondary" => ServerType::RSSecondary,
-            "RSArbiter" => ServerType::RSArbiter,
-            "RSOther" => ServerType::RSOther,
-            "RSGhost" => ServerType::RSGhost,
-            _ => ServerType::Unknown,
-        })
+               "Standalone" => ServerType::Standalone,
+               "Mongos" => ServerType::Mongos,
+               "RSPrimary" => ServerType::RSPrimary,
+               "RSSecondary" => ServerType::RSSecondary,
+               "RSArbiter" => ServerType::RSArbiter,
+               "RSOther" => ServerType::RSOther,
+               "RSGhost" => ServerType::RSGhost,
+               _ => ServerType::Unknown,
+           })
     }
 }
 
@@ -208,7 +208,7 @@ impl Server {
                host: Host,
                top_description: Arc<RwLock<TopologyDescription>>,
                run_monitor: bool,
-               connector: StreamConnector)
+               connector: ConnectMethod)
                -> Server {
         let description = Arc::new(RwLock::new(ServerDescription::new()));
 

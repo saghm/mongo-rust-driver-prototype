@@ -95,85 +95,91 @@ impl ConnectionString {
             options: None,
         }
     }
+
+    /// Parses a MongoDB connection string URI as defined by
+    /// [the manual](http://docs.mongodb.org/manual/reference/connection-string/).
+    pub fn parse(address: &str) -> Result<ConnectionString> {
+        if !address.starts_with(URI_SCHEME) {
+            return Err(ArgumentError(String::from("MongoDB connection string must start with \
+                                               'mongodb://'.")));
+        }
+
+        // Remove scheme
+        let addr = &address[URI_SCHEME.len()..];
+
+        let hosts: Vec<Host>;
+        let mut user: Option<String> = None;
+        let mut password: Option<String> = None;
+        let mut database: Option<String> = Some(String::from("test"));
+        let mut collection: Option<String> = None;
+        let mut options: Option<ConnectionOptions> = None;
+
+        // Split on host/path
+        let (host_str, path_str) = if addr.contains(".sock") {
+            // Partition ipc socket
+            let (host_part, path_part) = rsplit(addr, ".sock");
+            if path_part.starts_with('/') {
+                (host_part, &path_part[1..])
+            } else {
+                (host_part, path_part)
+            }
+        } else {
+            // Partition standard format
+            partition(addr, "/")
+        };
+
+        if path_str.is_empty() && host_str.contains('?') {
+            return Err(ArgumentError(String::from("A '/' is required between the host list and any \
+                                               options.")));
+        }
+
+        // Split on authentication and hosts
+        if host_str.contains('@') {
+            let (user_info, host_string) = rpartition(host_str, "@");
+            let (u, p) = try!(parse_user_info(user_info));
+            user = Some(String::from(u));
+            password = Some(String::from(p));
+            hosts = try!(split_hosts(host_string));
+        } else {
+            hosts = try!(split_hosts(host_str));
+        }
+
+        let mut opts = "";
+
+        // Split on database name, collection, and options
+        if !path_str.is_empty() {
+            if path_str.starts_with('?') {
+                opts = &path_str[1..];
+            } else {
+                let (dbase, options) = partition(path_str, "?");
+                let (dbase_new, coll) = partition(dbase, ".");
+                database = Some(String::from(dbase_new));
+                collection = Some(String::from(coll));
+                opts = options;
+            }
+        }
+
+        // Collect options if any exist
+        if !opts.is_empty() {
+            options = Some(split_options(opts).unwrap());
+        }
+
+        Ok(ConnectionString {
+               hosts: hosts,
+               string: Some(String::from(address)),
+               user: user,
+               password: password,
+               database: database,
+               collection: collection,
+               options: options,
+           })
+    }
 }
 
-/// Parses a MongoDB connection string URI as defined by
-/// [the manual](http://docs.mongodb.org/manual/reference/connection-string/).
-pub fn parse(address: &str) -> Result<ConnectionString> {
-    if !address.starts_with(URI_SCHEME) {
-        return Err(ArgumentError(String::from("MongoDB connection string must start with \
-                                               'mongodb://'.")));
+impl Default for ConnectionString {
+    fn default() -> Self {
+        Self::new("localhost", 27017)
     }
-
-    // Remove scheme
-    let addr = &address[URI_SCHEME.len()..];
-
-    let hosts: Vec<Host>;
-    let mut user: Option<String> = None;
-    let mut password: Option<String> = None;
-    let mut database: Option<String> = Some(String::from("test"));
-    let mut collection: Option<String> = None;
-    let mut options: Option<ConnectionOptions> = None;
-
-    // Split on host/path
-    let (host_str, path_str) = if addr.contains(".sock") {
-        // Partition ipc socket
-        let (host_part, path_part) = rsplit(addr, ".sock");
-        if path_part.starts_with('/') {
-            (host_part, &path_part[1..])
-        } else {
-            (host_part, path_part)
-        }
-    } else {
-        // Partition standard format
-        partition(addr, "/")
-    };
-
-    if path_str.is_empty() && host_str.contains('?') {
-        return Err(ArgumentError(String::from("A '/' is required between the host list and any \
-                                               options.")));
-    }
-
-    // Split on authentication and hosts
-    if host_str.contains('@') {
-        let (user_info, host_string) = rpartition(host_str, "@");
-        let (u, p) = try!(parse_user_info(user_info));
-        user = Some(String::from(u));
-        password = Some(String::from(p));
-        hosts = try!(split_hosts(host_string));
-    } else {
-        hosts = try!(split_hosts(host_str));
-    }
-
-    let mut opts = "";
-
-    // Split on database name, collection, and options
-    if !path_str.is_empty() {
-        if path_str.starts_with('?') {
-            opts = &path_str[1..];
-        } else {
-            let (dbase, options) = partition(path_str, "?");
-            let (dbase_new, coll) = partition(dbase, ".");
-            database = Some(String::from(dbase_new));
-            collection = Some(String::from(coll));
-            opts = options;
-        }
-    }
-
-    // Collect options if any exist
-    if !opts.is_empty() {
-        options = Some(split_options(opts).unwrap());
-    }
-
-    Ok(ConnectionString {
-        hosts: hosts,
-        string: Some(String::from(address)),
-        user: user,
-        password: password,
-        database: database,
-        collection: collection,
-        options: options,
-    })
 }
 
 // Parse user information of the form user:password

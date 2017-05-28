@@ -10,7 +10,7 @@ use bson::oid;
 use common::{ReadPreference, ReadMode};
 use connstring::{ConnectionString, Host};
 use pool::PooledStream;
-use stream::StreamConnector;
+use stream::ConnectMethod;
 
 use rand::{thread_rng, Rng};
 
@@ -64,7 +64,7 @@ pub struct TopologyDescription {
     // The largest set version seen from a primary in the topology.
     max_set_version: Option<i64>,
     compat_error: String,
-    stream_connector: StreamConnector,
+    connect_method: ConnectMethod,
 }
 
 /// Holds status and connection information about a server set.
@@ -102,16 +102,16 @@ impl Default for TopologyDescription {
             compatible: true,
             compat_error: String::new(),
             max_set_version: None,
-            stream_connector: StreamConnector::Tcp,
+            connect_method: ConnectMethod::Tcp,
         }
     }
 }
 
 impl TopologyDescription {
     /// Returns a default, unknown topology description.
-    pub fn new(connector: StreamConnector) -> TopologyDescription {
+    pub fn new(connector: ConnectMethod) -> TopologyDescription {
         let mut description = TopologyDescription::default();
-        description.stream_connector = connector;
+        description.connect_method = connector;
         description
     }
 
@@ -771,7 +771,7 @@ impl TopologyDescription {
                                          host.clone(),
                                          top_arc.clone(),
                                          run_monitor,
-                                         self.stream_connector.clone());
+                                         self.connect_method.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
@@ -782,7 +782,7 @@ impl TopologyDescription {
                                          host.clone(),
                                          top_arc.clone(),
                                          run_monitor,
-                                         self.stream_connector.clone());
+                                         self.connect_method.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
@@ -793,7 +793,7 @@ impl TopologyDescription {
                                          host.clone(),
                                          top_arc.clone(),
                                          run_monitor,
-                                         self.stream_connector.clone());
+                                         self.connect_method.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
@@ -804,7 +804,7 @@ impl Topology {
     /// Returns a new topology with the given configuration and description.
     pub fn new(config: ConnectionString,
                description: Option<TopologyDescription>,
-               connector: StreamConnector)
+               connector: ConnectMethod)
                -> Result<Topology> {
 
         let mut options = description.unwrap_or_else(|| TopologyDescription::new(connector));

@@ -147,12 +147,12 @@ impl Message {
         let header = Header::new_update(total_length, request_id);
 
         Ok(Message::OpUpdate {
-            header: header,
-            namespace: namespace,
-            flags: flags,
-            selector: selector,
-            update: update,
-        })
+               header: header,
+               namespace: namespace,
+               flags: flags,
+               selector: selector,
+               update: update,
+           })
     }
 
     /// Constructs a new message request for an insertion.
@@ -176,11 +176,11 @@ impl Message {
         let header = Header::new_insert(total_length, request_id);
 
         Ok(Message::OpInsert {
-            header: header,
-            flags: flags,
-            namespace: namespace,
-            documents: documents,
-        })
+               header: header,
+               flags: flags,
+               namespace: namespace,
+               documents: documents,
+           })
     }
 
     /// Constructs a new message request for a query.
@@ -215,14 +215,14 @@ impl Message {
         let header = Header::new_query(total_length, request_id);
 
         Ok(Message::OpQuery {
-            header: header,
-            flags: flags,
-            namespace: namespace,
-            number_to_skip: number_to_skip,
-            number_to_return: number_to_return,
-            query: query,
-            return_field_selector: return_field_selector,
-        })
+               header: header,
+               flags: flags,
+               namespace: namespace,
+               number_to_skip: number_to_skip,
+               number_to_return: number_to_return,
+               query: query,
+               return_field_selector: return_field_selector,
+           })
     }
 
     /// Constructs a new "get more" request message.
@@ -462,23 +462,28 @@ impl Message {
             Message::OpReply { .. } => {
                 Err(ArgumentError(String::from("OP_REPLY should not be sent to the client.")))
             }
-            Message::OpUpdate { ref header,
-                                ref namespace,
-                                ref flags,
-                                ref selector,
-                                ref update } => {
-                Message::write_update(buffer, header, namespace, flags, selector, update)
-            }
-            Message::OpInsert { ref header, ref flags, ref namespace, ref documents } => {
-                Message::write_insert(buffer, header, flags, namespace, documents)
-            }
-            Message::OpQuery { ref header,
-                               ref flags,
-                               ref namespace,
-                               number_to_skip,
-                               number_to_return,
-                               ref query,
-                               ref return_field_selector } => {
+            Message::OpUpdate {
+                ref header,
+                ref namespace,
+                ref flags,
+                ref selector,
+                ref update,
+            } => Message::write_update(buffer, header, namespace, flags, selector, update),
+            Message::OpInsert {
+                ref header,
+                ref flags,
+                ref namespace,
+                ref documents,
+            } => Message::write_insert(buffer, header, flags, namespace, documents),
+            Message::OpQuery {
+                ref header,
+                ref flags,
+                ref namespace,
+                number_to_skip,
+                number_to_return,
+                ref query,
+                ref return_field_selector,
+            } => {
                 Message::write_query(buffer,
                                      header,
                                      flags,
@@ -488,9 +493,12 @@ impl Message {
                                      query,
                                      return_field_selector)
             }
-            Message::OpGetMore { ref header, ref namespace, number_to_return, cursor_id } => {
-                Message::write_get_more(buffer, header, namespace, number_to_return, cursor_id)
-            }
+            Message::OpGetMore {
+                ref header,
+                ref namespace,
+                number_to_return,
+                cursor_id,
+            } => Message::write_get_more(buffer, header, namespace, number_to_return, cursor_id),
         }
     }
 

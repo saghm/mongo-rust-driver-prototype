@@ -8,9 +8,11 @@
 //! ## Collection Operations
 //!
 //! ```no_run
-//! # use mongodb::{Client, ThreadedClient};
+//! # use mongodb::{Connector, ThreadedClient};
 //! # use mongodb::db::ThreadedDatabase;
-//! # let client = Client::connect("localhost", 27017).unwrap();
+//! #
+//! # let connector = Connector::new();
+//! # let client = connector.connect("localhost", 27017).unwrap();
 //! #
 //! let db = client.db("movies");
 //! db.create_collection("action", None).unwrap();
@@ -21,9 +23,11 @@
 //! ## Authentication
 //!
 //! ```no_run
-//! # use mongodb::{Client, ThreadedClient};
+//! # use mongodb::{Connector, ThreadedClient};
 //! # use mongodb::db::ThreadedDatabase;
-//! # let client = Client::connect("localhost", 27017).unwrap();
+//!
+//! let connector = Connector::new();
+//! # let client = connector.connect("localhost", 27017).unwrap();
 //! #
 //! let db = client.db("redacted");
 //! db.create_user("saghm", "1234", None).unwrap();
@@ -41,11 +45,13 @@
 //! # #[macro_use] extern crate bson;
 //! # extern crate mongodb;
 //! #
-//! # use mongodb::{Client, CommandType, ThreadedClient};
+//! # use mongodb::{Connector, CommandType, ThreadedClient};
 //! # use mongodb::db::ThreadedDatabase;
 //! # use bson::Bson;
+//! #
 //! # fn main() {
-//! # let client = Client::connect("localhost", 27017).unwrap();
+//! # let connector = Connector::new();
+//! # let client = connector.connect("localhost", 27017).unwrap();
 //! #
 //! let db = client.db("movies");
 //! let cmd = doc! { "connectionStatus" => 1 };
@@ -65,7 +71,7 @@ use {Client, CommandType, ThreadedClient, Result};
 use Error::{CursorNotFoundError, OperationError, ResponseError};
 use coll::Collection;
 use coll::options::FindOptions;
-use common::{ReadPreference, merge_options, WriteConcern};
+use common::{ReadMode, ReadPreference, merge_options, WriteConcern};
 use cursor::{Cursor, DEFAULT_BATCH_SIZE};
 use self::options::{CreateCollectionOptions, CreateUserOptions, UserInfoOptions};
 use semver::Version;
@@ -169,15 +175,14 @@ impl ThreadedDatabase for Database {
             read_preference: Option<ReadPreference>,
             write_concern: Option<WriteConcern>)
             -> Database {
-        let rp = read_preference.unwrap_or_else(|| client.read_preference.to_owned());
-        let wc = write_concern.unwrap_or_else(|| client.write_concern.to_owned());
-
         Arc::new(DatabaseInner {
-            name: String::from(name),
-            client: client,
-            read_preference: rp,
-            write_concern: wc,
-        })
+                     name: String::from(name),
+                     client: client,
+                     read_preference:
+                         read_preference
+                             .unwrap_or_else(|| ReadPreference::new(ReadMode::Primary, None)),
+                     write_concern: write_concern.unwrap_or_else(WriteConcern::new),
+                 })
     }
 
     fn auth(&self, user: &str, password: &str) -> Result<()> {
@@ -232,11 +237,12 @@ impl ThreadedDatabase for Database {
         let mut options = FindOptions::new();
         options.batch_size = Some(1);
         options.read_preference = read_preference;
-        let res = try!(coll.find_one_with_command_type(Some(spec.clone()), Some(options),
-                                                       cmd_type));
+        let res =
+            try!(coll.find_one_with_command_type(Some(spec.clone()), Some(options), cmd_type));
         res.ok_or_else(|| {
-            OperationError(format!("Failed to execute command with spec {:?}.", spec))
-        })
+                           OperationError(format!("Failed to execute command with spec {:?}.",
+                                                  spec))
+                       })
     }
 
     fn list_collections(&self, filter: Option<bson::Document>) -> Result<Cursor> {
@@ -304,7 +310,8 @@ impl ThreadedDatabase for Database {
             doc = merge_options(doc, create_collection_options);
         }
 
-        self.command(doc, CommandType::CreateCollection, None).map(|_| ())
+        self.command(doc, CommandType::CreateCollection, None)
+            .map(|_| ())
     }
 
     fn create_user(&self,
@@ -422,11 +429,12 @@ impl ThreadedDatabase for Database {
                  users: Vec<&str>,
                  options: Option<UserInfoOptions>)
                  -> Result<Vec<bson::Document>> {
-        let vec: Vec<_> = users.into_iter()
+        let vec: Vec<_> = users
+            .into_iter()
             .map(|user| {
-                let doc = doc! { "user" => user, "db" => (self.name.to_owned()) };
-                Bson::Document(doc)
-            })
+                     let doc = doc! { "user" => user, "db" => (self.name.to_owned()) };
+                     Bson::Document(doc)
+                 })
             .collect();
 
         let mut doc = doc! { "usersInfo" => vec };

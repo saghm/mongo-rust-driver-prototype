@@ -62,9 +62,9 @@ impl Test {
         };
 
         Ok(Test {
-            operation: args,
-            outcome: outcome,
-        })
+               operation: args,
+               outcome: outcome,
+           })
     }
 }
 
@@ -132,8 +132,8 @@ impl SuiteContainer for Value {
         let tests = try!(get_tests(&object));
 
         Ok(Suite {
-            data: data,
-            tests: tests,
-        })
+               data: data,
+               tests: tests,
+           })
     }
 }

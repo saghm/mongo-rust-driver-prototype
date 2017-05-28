@@ -1,7 +1,6 @@
-use mongodb::{Client, ThreadedClient};
+use mongodb::Connector;
 use mongodb::common::ReadMode;
-use mongodb::connstring::ConnectionString;
-use mongodb::stream::StreamConnector;
+use mongodb::stream::ConnectMethod;
 use mongodb::topology::{TopologyDescription, TopologyType};
 use mongodb::topology::server::Server;
 
@@ -13,11 +12,10 @@ pub fn run_suite(file: &str) {
     let json = Value::from_file(file).unwrap();
     let suite = json.get_suite().unwrap();
 
-    let dummy_config = ConnectionString::new("i-dont-exist", 27017);
-    let dummy_client = Client::with_config(dummy_config, None, None).unwrap();
-    let dummy_top_arc = Arc::new(RwLock::new(TopologyDescription::new(StreamConnector::default())));
+    let dummy_client = Connector::new().connect("i-dont-exist", 27017).unwrap();
+    let dummy_top_arc = Arc::new(RwLock::new(TopologyDescription::new(ConnectMethod::default())));
 
-    let mut topology_description = TopologyDescription::new(StreamConnector::default());
+    let mut topology_description = TopologyDescription::new(ConnectMethod::default());
     topology_description.topology_type = suite.topology_description.ttype;
 
     for suite_server in suite.topology_description.servers {
@@ -25,7 +23,7 @@ pub fn run_suite(file: &str) {
                                  suite_server.host.clone(),
                                  dummy_top_arc.clone(),
                                  false,
-                                 StreamConnector::default());
+                                 ConnectMethod::default());
 
         {
             let mut description = server.description.write().unwrap();
@@ -34,13 +32,17 @@ pub fn run_suite(file: &str) {
             description.server_type = suite_server.stype;
         }
 
-        topology_description.servers.insert(suite_server.host, server);
+        topology_description
+            .servers
+            .insert(suite_server.host, server);
     }
 
     let (mut suitable_hosts, _) = if suite.write {
         topology_description.choose_write_hosts()
     } else {
-        topology_description.choose_hosts(&suite.read_preference).unwrap()
+        topology_description
+            .choose_hosts(&suite.read_preference)
+            .unwrap()
     };
 
     if suite.topology_description.ttype != TopologyType::Sharded &&

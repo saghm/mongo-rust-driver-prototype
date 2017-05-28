@@ -9,24 +9,30 @@ mod gridfs;
 mod wire_protocol;
 
 use bson;
-use mongodb::{Client, ThreadedClient};
+use mongodb::{Connector, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
 use std::thread;
 
 #[test]
 fn is_master() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let res = client.is_master().expect("Failed to execute is_master.");
     assert!(res);
 }
 
 #[test]
 fn database_names() {
-    let client = Client::connect("localhost", 27017).unwrap();
-    client.drop_database("test-client-mod-database_names").expect("Failed to drop database");
-    client.drop_database("test-client-mod-database_names_2").expect("Failed to drop database");
+    let client = Connector::new().connect("localhost", 27017).unwrap();
+    client
+        .drop_database("test-client-mod-database_names")
+        .expect("Failed to drop database");
+    client
+        .drop_database("test-client-mod-database_names_2")
+        .expect("Failed to drop database");
 
-    let base_results = client.database_names().expect("Failed to execute database_names.");
+    let base_results = client
+        .database_names()
+        .expect("Failed to execute database_names.");
 
     assert!(base_results.contains(&"admin".to_owned()));
     assert!(base_results.contains(&"local".to_owned()));
@@ -44,7 +50,9 @@ fn database_names() {
         .expect("Failed to insert placeholder document into collection");
 
     // Check new dbs
-    let results = client.database_names().expect("Failed to execute database_names.");
+    let results = client
+        .database_names()
+        .expect("Failed to execute database_names.");
     assert!(results.contains(&"admin".to_owned()));
     assert!(results.contains(&"local".to_owned()));
     assert!(results.contains(&"test-client-mod-database_names".to_owned()));
@@ -53,14 +61,20 @@ fn database_names() {
 
 #[test]
 fn is_sync() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let client1 = client.clone();
     let client2 = client.clone();
 
-    client.drop_database("test-client-mod-is_sync").expect("failed to drop database");
-    client.drop_database("test-client-mod-is_sync_2").expect("failed to drop database");
+    client
+        .drop_database("test-client-mod-is_sync")
+        .expect("failed to drop database");
+    client
+        .drop_database("test-client-mod-is_sync_2")
+        .expect("failed to drop database");
 
-    let base_results = client.database_names().expect("Failed to execute database_names.");
+    let base_results = client
+        .database_names()
+        .expect("Failed to execute database_names.");
 
     assert!(base_results.contains(&"admin".to_owned()));
     assert!(base_results.contains(&"local".to_owned()));
@@ -73,7 +87,9 @@ fn is_sync() {
         db.collection("test1")
             .insert_one(bson::Document::new(), None)
             .expect("Failed to insert placeholder document into collection");
-        let results = client1.database_names().expect("Failed to execute database_names.");
+        let results = client1
+            .database_names()
+            .expect("Failed to execute database_names.");
         assert!(results.contains(&"test-client-mod-is_sync".to_owned()));
     });
 
@@ -82,7 +98,9 @@ fn is_sync() {
         db.collection("test2")
             .insert_one(bson::Document::new(), None)
             .expect("Failed to insert placeholder document into collection");
-        let results = client2.database_names().expect("Failed to execute database_names.");
+        let results = client2
+            .database_names()
+            .expect("Failed to execute database_names.");
         assert!(results.contains(&"test-client-mod-is_sync_2".to_owned()));
     });
 
@@ -90,7 +108,9 @@ fn is_sync() {
     let _ = child2.join();
 
     // Check new dbs
-    let results = client.database_names().expect("Failed to execute database_names.");
+    let results = client
+        .database_names()
+        .expect("Failed to execute database_names.");
     assert!(results.contains(&"admin".to_owned()));
     assert!(results.contains(&"local".to_owned()));
     assert!(results.contains(&"test-client-mod-is_sync".to_owned()));

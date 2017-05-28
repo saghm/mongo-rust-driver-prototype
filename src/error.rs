@@ -513,7 +513,9 @@ impl ErrorCode {
             ErrorCode::CannotSatisfyWriteConcern => "CannotSatisfyWriteConcern",
             ErrorCode::OutdatedClient => "OutdatedClient",
             ErrorCode::IncompatibleAuditMetadata => "IncompatibleAuditMetadata",
-            ErrorCode::NewReplicaSetConfigurationIncompatible => "NewReplicaSetConfigurationIncompatible",
+            ErrorCode::NewReplicaSetConfigurationIncompatible => {
+                "NewReplicaSetConfigurationIncompatible"
+            }
             ErrorCode::NodeNotElectable => "NodeNotElectable",
             ErrorCode::IncompatibleShardingMetadata => "IncompatibleShardingMetadata",
             ErrorCode::DistributedClockSkewed => "DistributedClockSkewed",
@@ -544,7 +546,9 @@ impl ErrorCode {
             ErrorCode::RLPInitializationFailed => "RLPInitializationFailed",
             ErrorCode::ConfigServersInconsistent => "ConfigServersInconsistent",
             ErrorCode::FailedToSatisfyReadPreference => "FailedToSatisfyReadPreference",
-            ErrorCode::XXX_TEMP_NAME_ReadCommittedCurrentlyUnavailable => "XXX_TEMP_NAME_ReadCommittedCurrentlyUnavailable",
+            ErrorCode::XXX_TEMP_NAME_ReadCommittedCurrentlyUnavailable => {
+                "XXX_TEMP_NAME_ReadCommittedCurrentlyUnavailable"
+            }
             ErrorCode::StaleTerm => "StaleTerm",
             ErrorCode::CappedPositionLost => "CappedPositionLost",
             ErrorCode::IncompatibleShardingConfigVersion => "IncompatibleShardingConfigVersion",
@@ -554,8 +558,12 @@ impl ErrorCode {
             ErrorCode::DuplicateKey => "DuplicateKey",
             ErrorCode::InterruptedAtShutdown => "InterruptedAtShutdown",
             ErrorCode::Interrupted => "Interrupted",
-            ErrorCode::BackgroundOperationInProgressForDatabase => "BackgroundOperationInProgressForDatabase",
-            ErrorCode::BackgroundOperationInProgressForNamespace => "BackgroundOperationInProgressForNamespace",
+            ErrorCode::BackgroundOperationInProgressForDatabase => {
+                "BackgroundOperationInProgressForDatabase"
+            }
+            ErrorCode::BackgroundOperationInProgressForNamespace => {
+                "BackgroundOperationInProgressForNamespace"
+            }
             ErrorCode::PrepareConfigsFailedCode => "PrepareConfigsFailedCode",
             ErrorCode::DatabaseDifferCase => "DatabaseDifferCase",
             ErrorCode::ShardKeyTooBig => "ShardKeyTooBig",

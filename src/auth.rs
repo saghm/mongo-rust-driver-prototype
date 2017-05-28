@@ -86,11 +86,11 @@ impl Authenticator {
         };
 
         Ok(InitialData {
-            message: message,
-            response: response,
-            nonce: nonce,
-            conversation_id: id,
-        })
+               message: message,
+               response: response,
+               nonce: nonce,
+               conversation_id: id,
+           })
     }
 
     fn next(&self, password: String, initial_data: InitialData) -> Result<AuthData> {
@@ -101,8 +101,9 @@ impl Authenticator {
                                                       String,
                                                       u32);
 
-        let rnonce_b64 = rnonce_opt
-            .ok_or_else(|| ResponseError(String::from("Invalid rnonce returned")))?;
+        let rnonce_b64 =
+            rnonce_opt
+                .ok_or_else(|| ResponseError(String::from("Invalid rnonce returned")))?;
 
         // Validate rnonce to make sure server isn't malicious
         if !rnonce_b64.starts_with(&initial_data.nonce[..]) {
@@ -112,11 +113,13 @@ impl Authenticator {
         let salt_b64 = salt_opt
             .ok_or_else(|| ResponseError(String::from("Invalid salt returned")))?;
 
-        let salt = base64::decode(salt_b64.as_bytes())
-            .or_else(|e| Err(ResponseError(format!("Invalid base64 salt returned: {}", e))))?;
+        let salt =
+            base64::decode(salt_b64.as_bytes())
+                .or_else(|e| Err(ResponseError(format!("Invalid base64 salt returned: {}", e))))?;
 
-        let i = i_opt
-            .ok_or_else(|| ResponseError(String::from("Invalid iteration count returned")))?;
+        let i =
+            i_opt
+                .ok_or_else(|| ResponseError(String::from("Invalid iteration count returned")))?;
 
         // Hash password
         let mut md5 = Md5::new();
@@ -178,10 +181,10 @@ impl Authenticator {
         let response = try!(self.db.command(next_doc, Suppressed, None));
 
         Ok(AuthData {
-            salted_password: salted_password,
-            message: auth_message,
-            response: response,
-        })
+               salted_password: salted_password,
+               message: auth_message,
+               response: response,
+           })
     }
 
     fn finish(&self, conversation_id: Bson, auth_data: AuthData) -> Result<()> {

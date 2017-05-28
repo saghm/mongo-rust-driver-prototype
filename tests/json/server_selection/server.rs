@@ -32,8 +32,9 @@ impl Server {
                     Value::String(val) => {
                         tags.insert(key, val);
                     }
-                    _ => return Err(
-                        String::from("server must have tags that are string => string maps.")),
+                    _ => {
+                        return Err(String::from("server must have tags that are string => string maps.",),)
+                    }
                 }
             }
         }

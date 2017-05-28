@@ -2,15 +2,17 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 
 use bson::Bson;
-use mongodb::{Client, ClientOptions, CommandResult, ThreadedClient};
+use mongodb::{Client, Connector, CommandResult, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
 use rand;
 
 fn timed_query(_client: Client, command_result: &CommandResult) {
     let (command_name, duration) = match *command_result {
-        CommandResult::Success { ref command_name, duration, .. } => {
-            (command_name.clone(), duration)
-        }
+        CommandResult::Success {
+            ref command_name,
+            duration,
+            ..
+        } => (command_name.clone(), duration),
         _ => panic!("Command failed!"),
     };
 
@@ -26,12 +28,16 @@ fn timed_query(_client: Client, command_result: &CommandResult) {
 
 #[test]
 fn command_duration() {
-    let mut client = Client::connect("localhost", 27017).expect("damn it!");
+    let mut client = Connector::new()
+        .connect("localhost", 27017)
+        .expect("damn it!");
     let db = client.db("test-apm-mod");
     let coll = db.collection("command_duration");
     coll.drop().unwrap();
 
-    let docs = (1..4).map(|i| doc! { "_id" => i, "x" => (rand::random::<u8>() as u32) }).collect();
+    let docs = (1..4)
+        .map(|i| doc! { "_id" => i, "x" => (rand::random::<u8>() as u32) })
+        .collect();
     coll.insert_many(docs, None).unwrap();
     client.add_completion_hook(timed_query).unwrap();
 
@@ -57,7 +63,8 @@ fn logging() {
     let _ = fs::remove_file("test_log.txt");
 
     // Reset State
-    let reset_client = Client::connect("localhost", 27017)
+    let reset_client = Connector::new()
+        .connect("localhost", 27017)
         .expect("Failed to connect to localhost:27017");
     let reset_db = reset_client.db("test-apm-mod");
     let reset_coll = reset_db.collection("logging");
@@ -67,8 +74,10 @@ fn logging() {
     let v3_3 = db_version.major <= 3 && db_version.minor <= 3;
 
     // Start logging
-    let client_options = ClientOptions::with_log_file("test_log.txt");
-    let client = Client::connect_with_options("localhost", 27017, client_options).unwrap();
+    let client = Connector::new()
+        .log_file("test_log.txt")
+        .connect("localhost", 27017)
+        .unwrap();
 
     let db = client.db("test-apm-mod");
     let coll = db.collection("logging");

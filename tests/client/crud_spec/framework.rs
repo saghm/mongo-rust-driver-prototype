@@ -245,7 +245,7 @@ macro_rules! run_suite {
     ( $file:expr, $coll:expr ) => {{
         let json = Value::from_file($file).unwrap();
         let suite = json.get_suite().unwrap();
-        let client =  Client::connect("localhost", 27017).unwrap();
+        let client =  Connector::new().connect("localhost", 27017).unwrap();
         let db = client.db("test");
         let coll = db.collection($coll);
 

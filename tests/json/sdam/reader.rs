@@ -22,9 +22,9 @@ impl Phase {
                                   "No `outcome` object found.");
 
         Ok(Phase {
-            operation: operation,
-            outcome: outcome,
-        })
+               operation: operation,
+               outcome: outcome,
+           })
     }
 }
 
@@ -79,8 +79,8 @@ impl SuiteContainer for Value {
 
         let phases = try!(get_phases(&object));
         Ok(Suite {
-            uri: uri,
-            phases: phases,
-        })
+               uri: uri,
+               phases: phases,
+           })
     }
 }

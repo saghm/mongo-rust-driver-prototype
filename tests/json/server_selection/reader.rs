@@ -59,22 +59,26 @@ impl SuiteContainer for Value {
 
         let write = operation == "write";
 
-        let read_preference = val_or_err!(object.get("read_preference"),
+        let read_preference =
+            val_or_err!(object.get("read_preference"),
                                           Some(&Value::Object(ref object)) =>
                                           try!(ReadPreference::from_json(object)),
                                           "suite requires a read_preference object.");
 
-        let in_latency_window = val_or_err!(object.get("in_latency_window"),
+        let in_latency_window =
+            val_or_err!(object.get("in_latency_window"),
                                            Some(&Value::Array(ref array)) =>
                                            try!(get_server_array(array)),
                                            "suite requires an in_latency_window array.");
 
-        let suitable_servers = val_or_err!(object.get("suitable_servers"),
+        let suitable_servers =
+            val_or_err!(object.get("suitable_servers"),
                                            Some(&Value::Array(ref array)) =>
                                            try!(get_server_array(array)),
                                            "suite requires a suitable_servers array.");
 
-        let topology_obj = val_or_err!(object.get("topology_description"),
+        let topology_obj =
+            val_or_err!(object.get("topology_description"),
                                        Some(&Value::Object(ref obj)) => obj,
                                        "suite requires a topology_description object.");
 
@@ -88,11 +92,11 @@ impl SuiteContainer for Value {
                                 "topology requires a type");
 
         Ok(Suite {
-            in_latency_window: in_latency_window,
-            write: write,
-            read_preference: read_preference,
-            suitable_servers: suitable_servers,
-            topology_description: TopologyDescription::new(top_servers, ttype),
-        })
+               in_latency_window: in_latency_window,
+               write: write,
+               read_preference: read_preference,
+               suitable_servers: suitable_servers,
+               topology_description: TopologyDescription::new(top_servers, ttype),
+           })
     }
 }

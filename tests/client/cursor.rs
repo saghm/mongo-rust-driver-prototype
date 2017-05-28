@@ -1,6 +1,6 @@
 use bson::{Bson, Document};
 
-use mongodb::{Client, CommandType, ThreadedClient};
+use mongodb::{CommandType, Connector, ThreadedClient};
 use mongodb::common::{ReadMode, ReadPreference};
 use mongodb::coll::options::FindOptions;
 use mongodb::db::ThreadedDatabase;
@@ -9,7 +9,7 @@ use mongodb::wire_protocol::flags::OpQueryFlags;
 
 #[test]
 fn cursor_features() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-cursor");
     let coll = db.collection("cursor_test");
 
@@ -43,7 +43,9 @@ fn cursor_features() {
         Err(s) => panic!("{}", s),
     };
 
-    let batch = cursor.drain_current_batch().expect("Failed to get current batch from cursor.");
+    let batch = cursor
+        .drain_current_batch()
+        .expect("Failed to get current batch from cursor.");
 
     assert_eq!(batch.len(), 3 as usize);
 

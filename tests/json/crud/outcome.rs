@@ -22,9 +22,9 @@ impl Outcome {
             Some(&Value::Object(ref obj)) => obj.clone(),
             _ => {
                 return Ok(Outcome {
-                    result: result,
-                    collection: None,
-                })
+                              result: result,
+                              collection: None,
+                          })
             }
         };
 
@@ -52,8 +52,8 @@ impl Outcome {
         };
 
         Ok(Outcome {
-            result: result,
-            collection: Some(collection),
-        })
+               result: result,
+               collection: Some(collection),
+           })
     }
 }

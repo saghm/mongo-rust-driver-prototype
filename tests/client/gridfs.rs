@@ -1,6 +1,6 @@
 use bson::Bson;
 
-use mongodb::{Client, ThreadedClient};
+use mongodb::{Connector, ThreadedClient};
 use mongodb::coll::Collection;
 use mongodb::coll::options::{FindOptions, IndexOptions};
 use mongodb::db::ThreadedDatabase;
@@ -11,7 +11,7 @@ use rand::{thread_rng, Rng};
 use std::io::{Read, Write};
 
 fn init_gridfs(name: &str) -> (Store, Collection, Collection) {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db(name);
     let fs = Store::with_db(db.clone());
 
@@ -54,9 +54,13 @@ fn put_get() {
     opts.sort = Some(doc!{ "n" => 1});
 
     // Check chunks
-    let mut cursor = fschunks.find(Some(doc!{"files_id" => (id.clone())}), Some(opts)).unwrap();
+    let mut cursor = fschunks
+        .find(Some(doc!{"files_id" => (id.clone())}), Some(opts))
+        .unwrap();
 
-    let chunks = cursor.drain_current_batch().expect("Failed to get current batch");
+    let chunks = cursor
+        .drain_current_batch()
+        .expect("Failed to get current batch");
     assert_eq!(3, chunks.len());
 
     for (i, chunk) in chunks.iter().enumerate().take(3) {
@@ -78,7 +82,9 @@ fn put_get() {
 
     let mut opts = IndexOptions::new();
     opts.unique = Some(true);
-    fschunks.create_index(doc!{ "files_id" => 1, "n" => 1}, Some(opts)).unwrap();
+    fschunks
+        .create_index(doc!{ "files_id" => 1, "n" => 1}, Some(opts))
+        .unwrap();
     let mut cursor = fschunks.list_indexes().unwrap();
     let results = cursor.next_n(10).unwrap();
     assert_eq!(2, results.len());
@@ -111,16 +117,26 @@ fn remove() {
     grid_file.write_all(&src).unwrap();
     grid_file.close().unwrap();
 
-    assert!(fsfiles.find_one(Some(doc!{"_id" => (id.clone())}), None).unwrap().is_some());
+    assert!(fsfiles
+                .find_one(Some(doc!{"_id" => (id.clone())}), None)
+                .unwrap()
+                .is_some());
 
-    let mut cursor = fschunks.find(Some(doc!{"files_id" => (id.clone())}), None).unwrap();
+    let mut cursor = fschunks
+        .find(Some(doc!{"files_id" => (id.clone())}), None)
+        .unwrap();
     let results = cursor.drain_current_batch().unwrap();
     assert_eq!(2, results.len());
 
     fs.remove(name.to_owned()).unwrap();
-    assert!(fsfiles.find_one(Some(doc!{"_id" => (id.clone())}), None).unwrap().is_none());
+    assert!(fsfiles
+                .find_one(Some(doc!{"_id" => (id.clone())}), None)
+                .unwrap()
+                .is_none());
 
-    let mut cursor = fschunks.find(Some(doc!{"files_id" => (id.clone())}), None).unwrap();
+    let mut cursor = fschunks
+        .find(Some(doc!{"files_id" => (id.clone())}), None)
+        .unwrap();
     let results = cursor.drain_current_batch().unwrap();
     assert_eq!(0, results.len());
 }
@@ -138,14 +154,21 @@ fn remove_id() {
     grid_file.write_all(&src).unwrap();
     grid_file.close().unwrap();
 
-    assert!(fsfiles.find_one(Some(doc!{"_id" => (id.clone())}), None).unwrap().is_some());
+    assert!(fsfiles
+                .find_one(Some(doc!{"_id" => (id.clone())}), None)
+                .unwrap()
+                .is_some());
 
-    let mut cursor = fschunks.find(Some(doc!{"files_id" => (id.clone())}), None).unwrap();
+    let mut cursor = fschunks
+        .find(Some(doc!{"files_id" => (id.clone())}), None)
+        .unwrap();
     let results = cursor.drain_current_batch().unwrap();
     assert_eq!(2, results.len());
 
     fs.remove_id(id.clone()).unwrap();
-    let mut cursor = fschunks.find(Some(doc!{"files_id" => (id.clone())}), None).unwrap();
+    let mut cursor = fschunks
+        .find(Some(doc!{"files_id" => (id.clone())}), None)
+        .unwrap();
     let results = cursor.drain_current_batch().unwrap();
     assert_eq!(0, results.len());
 }

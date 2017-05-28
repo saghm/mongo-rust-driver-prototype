@@ -347,9 +347,9 @@ impl IndexModel {
     /// as automatically generated using the keys.
     pub fn name(&self) -> Result<String> {
         Ok(match self.options.name {
-            Some(ref name) => name.to_owned(),
-            None => try!(self.generate_index_name()),
-        })
+               Some(ref name) => name.to_owned(),
+               None => try!(self.generate_index_name()),
+           })
     }
 
     /// Generates the index name from keys.

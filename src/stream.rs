@@ -11,7 +11,7 @@ use openssl::x509::X509_FILETYPE_PEM;
 
 /// Encapsulates the functionality for how to connect to the server.
 #[derive(Clone)]
-pub enum StreamConnector {
+pub enum ConnectMethod {
     /// Connect to the server through a regular TCP stream.
     Tcp,
     #[cfg(feature = "ssl")]
@@ -24,16 +24,16 @@ pub enum StreamConnector {
     },
 }
 
-impl Default for StreamConnector {
+impl Default for ConnectMethod {
     fn default() -> Self {
-        StreamConnector::Tcp
+        ConnectMethod::Tcp
     }
 }
 
-impl StreamConnector {
+impl ConnectMethod {
     #[cfg(feature = "ssl")]
-    /// Creates a StreamConnector that will connect with SSL encryption.
-    /// 
+    /// Creates a ConnectMethod that will connect with SSL encryption.
+    ///
     /// The SSL connection will use the cipher with the longest key length available to both the
     /// server and client, with the following caveats:
     ///   * SSLv2 and SSlv3 are disabled
@@ -55,7 +55,7 @@ impl StreamConnector {
                     key_file: &str,
                     verify_peer: bool)
                     -> Self {
-        StreamConnector::Ssl {
+        ConnectMethod::Ssl {
             ca_file: String::from(ca_file),
             certificate_file: String::from(certificate_file),
             key_file: String::from(key_file),
@@ -65,22 +65,27 @@ impl StreamConnector {
 
     pub fn connect(&self, hostname: &str, port: u16) -> Result<Stream> {
         match *self {
-            StreamConnector::Tcp => TcpStream::connect((hostname, port)).map(Stream::Tcp),
+            ConnectMethod::Tcp => TcpStream::connect((hostname, port)).map(Stream::Tcp),
             #[cfg(feature = "ssl")]
-            StreamConnector::Ssl { ref ca_file,
-                                   ref certificate_file,
-                                   ref key_file,
-                                   verify_peer } => {
+            ConnectMethod::Ssl {
+                ref ca_file,
+                ref certificate_file,
+                ref key_file,
+                verify_peer,
+            } => {
                 let inner_stream = TcpStream::connect((hostname, port))?;
 
                 let mut ssl_context = SslContext::builder(SslMethod::tls())?;
-                ssl_context.set_cipher_list("ALL:!EXPORT:!eNULL:!aNULL:HIGH:@STRENGTH")?;
+                ssl_context
+                    .set_cipher_list("ALL:!EXPORT:!eNULL:!aNULL:HIGH:@STRENGTH")?;
                 ssl_context.set_options(SSL_OP_NO_SSLV2);
                 ssl_context.set_options(SSL_OP_NO_SSLV3);
                 ssl_context.set_options(SSL_OP_NO_COMPRESSION);
                 ssl_context.set_ca_file(ca_file)?;
-                ssl_context.set_certificate_file(certificate_file, X509_FILETYPE_PEM)?;
-                ssl_context.set_private_key_file(key_file, X509_FILETYPE_PEM)?;
+                ssl_context
+                    .set_certificate_file(certificate_file, X509_FILETYPE_PEM)?;
+                ssl_context
+                    .set_private_key_file(key_file, X509_FILETYPE_PEM)?;
 
                 let verify = if verify_peer {
                     SSL_VERIFY_PEER

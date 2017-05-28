@@ -1,13 +1,13 @@
 use bson::Bson;
 
-use mongodb::{Client, ThreadedClient};
+use mongodb::{Connector, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
 use mongodb::coll::options::{FindOptions, FindOneAndUpdateOptions, IndexModel, IndexOptions,
                              ReturnDocument};
 
 #[test]
 fn find_sorted() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("find_sorted");
 
@@ -25,7 +25,8 @@ fn find_sorted() {
     let mut opts = FindOptions::new();
     opts.sort = Some(doc! { "title" => 1 });
 
-    let mut cursor = coll.find(None, Some(opts)).expect("Failed to execute find command.");
+    let mut cursor = coll.find(None, Some(opts))
+        .expect("Failed to execute find command.");
     let results = cursor.next_n(3).expect("Failed to retrieve documents.");
 
     // Assert expected titles of documents
@@ -50,7 +51,7 @@ fn find_sorted() {
 
 #[test]
 fn find_and_insert() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("find_and_insert");
 
@@ -58,10 +59,12 @@ fn find_and_insert() {
 
     // Insert document
     let doc = doc! { "title" => "Jaws" };
-    coll.insert_one(doc, None).expect("Failed to insert document");
+    coll.insert_one(doc, None)
+        .expect("Failed to insert document");
 
     // Find document
-    let mut cursor = coll.find(None, None).expect("Failed to execute find command.");
+    let mut cursor = coll.find(None, None)
+        .expect("Failed to execute find command.");
     let result = match cursor.next() {
         Some(Ok(res)) => res,
         Some(Err(_)) => panic!("Received error from 'cursor.next()'."),
@@ -79,7 +82,7 @@ fn find_and_insert() {
 
 #[test]
 fn find_and_insert_one() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("find_and_insert_one");
 
@@ -87,10 +90,12 @@ fn find_and_insert_one() {
 
     // Insert document
     let doc = doc! { "title" => "Jaws" };
-    coll.insert_one(doc, None).expect("Failed to insert document");
+    coll.insert_one(doc, None)
+        .expect("Failed to insert document");
 
     // Find single document
-    let result = coll.find_one(None, None).expect("Failed to execute find command.");
+    let result = coll.find_one(None, None)
+        .expect("Failed to execute find command.");
     assert!(result.is_some());
 
     // Assert expected title of document
@@ -102,7 +107,7 @@ fn find_and_insert_one() {
 
 #[test]
 fn find_one_and_delete() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("find_one_and_delete");
 
@@ -125,7 +130,8 @@ fn find_one_and_delete() {
     }
 
     // Validate state of collection
-    let mut cursor = coll.find(None, None).expect("Failed to execute find command.");
+    let mut cursor = coll.find(None, None)
+        .expect("Failed to execute find command.");
     let result = match cursor.next() {
         Some(Ok(res)) => res,
         Some(Err(_)) => panic!("Received error from 'cursor.next()'."),
@@ -142,7 +148,7 @@ fn find_one_and_delete() {
 
 #[test]
 fn find_one_and_replace() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("find_one_and_replace");
 
@@ -166,7 +172,8 @@ fn find_one_and_replace() {
     }
 
     // Validate state of collection
-    let mut cursor = coll.find(None, None).expect("Failed to execute find command.");
+    let mut cursor = coll.find(None, None)
+        .expect("Failed to execute find command.");
     let results = cursor.next_n(3).expect("Failed to get next 3 from cursor.");
     assert_eq!(3, results.len());
 
@@ -198,7 +205,7 @@ fn find_one_and_replace() {
 
 #[test]
 fn find_one_and_update() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("find_one_and_update");
 
@@ -224,7 +231,8 @@ fn find_one_and_update() {
     }
 
     // Validate state of collection
-    let mut cursor = coll.find(None, None).expect("Failed to execute find command.");
+    let mut cursor = coll.find(None, None)
+        .expect("Failed to execute find command.");
     let results = cursor.next_n(3).expect("Failed to get next 3 from cursor.");
     assert_eq!(3, results.len());
 
@@ -239,7 +247,7 @@ fn find_one_and_update() {
 
 #[test]
 fn aggregate() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("aggregate");
 
@@ -262,15 +270,18 @@ fn aggregate() {
     let mut cursor = coll.aggregate(vec![project, unwind, group], None)
         .expect("Failed to execute aggregate command.");
 
-    let results = cursor.next_n(10).expect("Failed to get next 10 from cursor.");
+    let results = cursor
+        .next_n(10)
+        .expect("Failed to get next 10 from cursor.");
     assert_eq!(6, results.len());
 
     // Grab ids from aggregated docs
-    let vec: Vec<_> = results.iter()
+    let vec: Vec<_> = results
+        .iter()
         .filter_map(|bdoc| match bdoc.get("_id") {
-            Some(&Bson::String(ref tag)) => Some(tag.to_owned()),
-            _ => None,
-        })
+                        Some(&Bson::String(ref tag)) => Some(tag.to_owned()),
+                        _ => None,
+                    })
         .collect();
 
     // Validate that all distinct tags were received.
@@ -285,7 +296,7 @@ fn aggregate() {
 
 #[test]
 fn count() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("count");
 
@@ -300,24 +311,28 @@ fn count() {
         vec.push(doc2.clone());
     }
 
-    coll.insert_many(vec, None).expect("Failed to insert documents.");
-    let count_doc1 = coll.count(Some(doc1), None).expect("Failed to execute count.");
+    coll.insert_many(vec, None)
+        .expect("Failed to insert documents.");
+    let count_doc1 = coll.count(Some(doc1), None)
+        .expect("Failed to execute count.");
     assert_eq!(1, count_doc1);
 
-    let count_doc2 = coll.count(Some(doc2), None).expect("Failed to execute count.");
+    let count_doc2 = coll.count(Some(doc2), None)
+        .expect("Failed to execute count.");
     assert_eq!(10, count_doc2);
 
     let count_all = coll.count(None, None).expect("Failed to execute count.");
     assert_eq!(11, count_all);
 
     let no_doc = doc! { "title" => "Houdini" };
-    let count_none = coll.count(Some(no_doc), None).expect("Failed to execute count.");
+    let count_none = coll.count(Some(no_doc), None)
+        .expect("Failed to execute count.");
     assert_eq!(0, count_none);
 }
 
 #[test]
 fn distinct_none() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("distinct_none");
 
@@ -329,13 +344,14 @@ fn distinct_none() {
 
 #[test]
 fn distinct_one() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("distinct_one");
 
     coll.drop().expect("Failed to drop database");
     let doc2 = doc! { "title" => "Back to the Future" };
-    coll.insert_one(doc2, None).expect("Failed to insert document.");
+    coll.insert_one(doc2, None)
+        .expect("Failed to insert document.");
 
     let distinct_titles = coll.distinct("title", None, None)
         .expect("Failed to execute 'distinct'.");
@@ -344,7 +360,7 @@ fn distinct_one() {
 
 #[test]
 fn distinct() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("distinct");
 
@@ -367,18 +383,20 @@ fn distinct() {
         vec.push(doc3.clone());
     }
 
-    coll.insert_many(vec, None).expect("Failed to insert documents.");
+    coll.insert_many(vec, None)
+        .expect("Failed to insert documents.");
 
     // Distinct titles over all documents
     let distinct_titles = coll.distinct("title", None, None)
         .expect("Failed to execute 'distinct'.");
     assert_eq!(3, distinct_titles.len());
 
-    let titles: Vec<_> = distinct_titles.iter()
+    let titles: Vec<_> = distinct_titles
+        .iter()
         .filter_map(|bson| match *bson {
-            Bson::String(ref title) => Some(title.to_owned()),
-            _ => None,
-        })
+                        Bson::String(ref title) => Some(title.to_owned()),
+                        _ => None,
+                    })
         .collect();
 
     assert_eq!(3, titles.len());
@@ -393,11 +411,12 @@ fn distinct() {
 
     assert_eq!(2, distinct_titles.len());
 
-    let titles: Vec<_> = distinct_titles.iter()
+    let titles: Vec<_> = distinct_titles
+        .iter()
         .filter_map(|bson| match *bson {
-            Bson::String(ref title) => Some(title.to_owned()),
-            _ => None,
-        })
+                        Bson::String(ref title) => Some(title.to_owned()),
+                        _ => None,
+                    })
         .collect();
 
     assert_eq!(2, titles.len());
@@ -407,7 +426,7 @@ fn distinct() {
 
 #[test]
 fn insert_many() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("insert_many");
 
@@ -417,10 +436,12 @@ fn insert_many() {
     let doc1 = doc! { "title" => "Jaws" };
     let doc2 = doc! { "title" => "Back to the Future" };
 
-    coll.insert_many(vec![doc1, doc2], None).expect("Failed to insert documents.");
+    coll.insert_many(vec![doc1, doc2], None)
+        .expect("Failed to insert documents.");
 
     // Find documents
-    let mut cursor = coll.find(None, None).expect("Failed to execute find command.");
+    let mut cursor = coll.find(None, None)
+        .expect("Failed to execute find command.");
     let results = cursor.next_n(2).expect("Failed to get next 2 from cursor.");
     assert_eq!(2, results.len());
 
@@ -437,7 +458,7 @@ fn insert_many() {
 
 #[test]
 fn delete_one() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("delete_one");
 
@@ -451,8 +472,10 @@ fn delete_one() {
         .expect("Failed to insert documents.");
 
     // Delete document
-    coll.delete_one(doc2.clone(), None).expect("Failed to delete document.");
-    let mut cursor = coll.find(None, None).expect("Failed to execute find command.");
+    coll.delete_one(doc2.clone(), None)
+        .expect("Failed to delete document.");
+    let mut cursor = coll.find(None, None)
+        .expect("Failed to execute find command.");
     let result = match cursor.next() {
         Some(Ok(res)) => res,
         Some(Err(_)) => panic!("Received error from 'cursor.next()'."),
@@ -469,7 +492,7 @@ fn delete_one() {
 
 #[test]
 fn delete_many() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("delete_many");
 
@@ -483,8 +506,10 @@ fn delete_many() {
         .expect("Failed to insert documents into collection.");
 
     // Delete document
-    coll.delete_many(doc2.clone(), None).expect("Failed to delete documents.");
-    let mut cursor = coll.find(None, None).expect("Failed to execute find command.");
+    coll.delete_many(doc2.clone(), None)
+        .expect("Failed to delete documents.");
+    let mut cursor = coll.find(None, None)
+        .expect("Failed to execute find command.");
     let result = match cursor.next() {
         Some(Ok(res)) => res,
         Some(Err(_)) => panic!("Received error from 'cursor.next()'."),
@@ -501,7 +526,7 @@ fn delete_many() {
 
 #[test]
 fn replace_one() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("replace_one");
 
@@ -516,8 +541,10 @@ fn replace_one() {
         .expect("Failed to insert documents into collection.");
 
     // Replace single document
-    coll.replace_one(doc2.clone(), doc3.clone(), None).expect("Failed to replace document.");
-    let mut cursor = coll.find(None, None).expect("Failed to execute find command.");
+    coll.replace_one(doc2.clone(), doc3.clone(), None)
+        .expect("Failed to replace document.");
+    let mut cursor = coll.find(None, None)
+        .expect("Failed to execute find command.");
     let results = cursor.next_n(3).expect("Failed to get next 3 from cursor.");
     assert_eq!(3, results.len());
 
@@ -538,7 +565,7 @@ fn replace_one() {
 
 #[test]
 fn update_one() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("update_one");
 
@@ -555,9 +582,11 @@ fn update_one() {
     // Update single document
     let update = doc! { "$set" => { "director" => "Robert Zemeckis" } };
 
-    coll.update_one(doc2.clone(), update, None).expect("Failed to update document.");
+    coll.update_one(doc2.clone(), update, None)
+        .expect("Failed to update document.");
 
-    let mut cursor = coll.find(None, None).expect("Failed to execute find command.");
+    let mut cursor = coll.find(None, None)
+        .expect("Failed to execute find command.");
     let results = cursor.next_n(3).expect("Failed to get next 3 from cursor.");
     assert_eq!(3, results.len());
 
@@ -572,7 +601,7 @@ fn update_one() {
 
 #[test]
 fn update_many() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("update_many");
 
@@ -590,9 +619,11 @@ fn update_many() {
     // Update single document
     let update = doc! { "$set" => { "director" => "Robert Zemeckis" } };
 
-    coll.update_many(doc2.clone(), update, None).expect("Failed to update documents.");
+    coll.update_many(doc2.clone(), update, None)
+        .expect("Failed to update documents.");
 
-    let mut cursor = coll.find(None, None).expect("Failed to execute find command.");
+    let mut cursor = coll.find(None, None)
+        .expect("Failed to execute find command.");
     let results = cursor.next_n(4).expect("Failed to get next 4 from cursor.");
     assert_eq!(4, results.len());
 
@@ -613,7 +644,7 @@ fn update_many() {
 
 #[test]
 fn create_list_drop_indexes() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("create_list_drop_indexes");
 
@@ -681,7 +712,8 @@ fn create_list_drop_indexes() {
 
     assert_eq!(2, results.len());
 
-    coll.drop_index(doc!{ "test" => (-1), "height" => 1 }, None).unwrap();
+    coll.drop_index(doc!{ "test" => (-1), "height" => 1 }, None)
+        .unwrap();
     let mut cursor = coll.list_indexes().unwrap();
     let results = cursor.next_n(5).unwrap();
 
@@ -690,7 +722,7 @@ fn create_list_drop_indexes() {
 
 #[test]
 fn drop_all_indexes() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-coll");
     let coll = db.collection("drop_all_indexes");
 

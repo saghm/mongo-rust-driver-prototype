@@ -84,8 +84,16 @@ impl From<WriteModel> for Batch {
                                        multi: true,
                                    }])
             }
-            WriteModel::ReplaceOne { filter, replacement: update, upsert } |
-            WriteModel::UpdateOne { filter, update, upsert } => {
+            WriteModel::ReplaceOne {
+                filter,
+                replacement: update,
+                upsert,
+            } |
+            WriteModel::UpdateOne {
+                filter,
+                update,
+                upsert,
+            } => {
                 Batch::Update(vec![UpdateModel {
                                        filter: filter,
                                        update: update,
@@ -93,7 +101,11 @@ impl From<WriteModel> for Batch {
                                        multi: false,
                                    }])
             }
-            WriteModel::UpdateMany { filter, update, upsert } => {
+            WriteModel::UpdateMany {
+                filter,
+                update,
+                upsert,
+            } => {
                 Batch::Update(vec![UpdateModel {
                                        filter: filter,
                                        update: update,
@@ -138,37 +150,49 @@ impl Batch {
                 match model {
                     WriteModel::DeleteOne { filter } => {
                         models.push(DeleteModel {
-                            filter: filter,
-                            multi: false,
-                        })
+                                        filter: filter,
+                                        multi: false,
+                                    })
                     }
                     WriteModel::DeleteMany { filter } => {
                         models.push(DeleteModel {
-                            filter: filter,
-                            multi: true,
-                        })
+                                        filter: filter,
+                                        multi: true,
+                                    })
                     }
                     _ => return Some(model),
                 }
             }
             Batch::Update(ref mut models) => {
                 match model {
-                    WriteModel::ReplaceOne { filter, replacement: update, upsert } |
-                    WriteModel::UpdateOne { filter, update, upsert } => {
+                    WriteModel::ReplaceOne {
+                        filter,
+                        replacement: update,
+                        upsert,
+                    } |
+                    WriteModel::UpdateOne {
+                        filter,
+                        update,
+                        upsert,
+                    } => {
                         models.push(UpdateModel {
-                            filter: filter,
-                            update: update,
-                            upsert: upsert,
-                            multi: false,
-                        })
+                                        filter: filter,
+                                        update: update,
+                                        upsert: upsert,
+                                        multi: false,
+                                    })
                     }
-                    WriteModel::UpdateMany { filter, update, upsert } => {
+                    WriteModel::UpdateMany {
+                        filter,
+                        update,
+                        upsert,
+                    } => {
                         models.push(UpdateModel {
-                            filter: filter,
-                            update: update,
-                            upsert: upsert,
-                            multi: true,
-                        })
+                                        filter: filter,
+                                        update: update,
+                                        upsert: upsert,
+                                        multi: true,
+                                    })
                     }
                     _ => return Some(model),
                 }

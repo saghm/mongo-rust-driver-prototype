@@ -1,24 +1,24 @@
 use bson::Bson;
 use mongodb::coll::options::WriteModel;
-use mongodb::{Client, ThreadedClient};
+use mongodb::{Connector, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
 
 #[test]
 fn bulk_ordered_insert_only() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-bulk");
     let coll = db.collection("bulk_ordered_insert_only");
     coll.drop().unwrap();
 
     let models = (1..5)
         .map(|i| {
-            WriteModel::InsertOne {
-                document: doc! {
+                 WriteModel::InsertOne {
+                     document: doc! {
         "_id" => (i),
         "x" => (i * 11)
     },
-            }
-        })
+                 }
+             })
         .collect();
 
     coll.bulk_write(models, true);
@@ -45,7 +45,7 @@ fn bulk_ordered_insert_only() {
 
 #[test]
 fn bulk_unordered_insert_only() {
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-bulk");
     let coll = db.collection("bulk_unordered_insert_only");
 
@@ -53,13 +53,13 @@ fn bulk_unordered_insert_only() {
 
     let models = (1..5)
         .map(|i| {
-            WriteModel::InsertOne {
-                document: doc! {
+                 WriteModel::InsertOne {
+                     document: doc! {
         "_id" => (i),
         "x" => (i * 11)
     },
-            }
-        })
+                 }
+             })
         .collect();
 
     coll.bulk_write(models, false);
@@ -86,67 +86,87 @@ fn bulk_unordered_insert_only() {
 
 #[test]
 fn bulk_ordered_mix() {
-    let models = vec![
-        WriteModel::InsertOne { document: doc! {
+    let models = vec![WriteModel::InsertOne {
+                          document: doc! {
             "_id" => (1),
             "x" => (11)
-        }},
-        WriteModel::InsertOne { document: doc! {
+        },
+                      },
+                      WriteModel::InsertOne {
+                          document: doc! {
             "_id" => (2),
             "x" => (22)
-        }},
-        WriteModel::InsertOne { document: doc! {
+        },
+                      },
+                      WriteModel::InsertOne {
+                          document: doc! {
             "_id" => (3),
             "x" => (33)
-        }},
-        WriteModel::InsertOne { document: doc! {
+        },
+                      },
+                      WriteModel::InsertOne {
+                          document: doc! {
             "_id" => (4),
             "x" => (44)
-        }},
-        WriteModel::ReplaceOne {
-            filter: doc! { "_id" => (3) },
-            replacement: doc! { "x" => (37) },
-            upsert: Some(true),
         },
-        WriteModel::UpdateMany {
-            filter: doc! { "_id" => { "$lt" => (3) } },
-            update: doc! { "$inc" => { "x" => (1) } },
-            upsert: Some(false),
-        },
-        WriteModel::DeleteOne { filter: doc! {
+                      },
+                      WriteModel::ReplaceOne {
+                          filter: doc! { "_id" => (3) },
+                          replacement: doc! { "x" => (37) },
+                          upsert: Some(true),
+                      },
+                      WriteModel::UpdateMany {
+                          filter: doc! { "_id" => { "$lt" => (3) } },
+                          update: doc! { "$inc" => { "x" => (1) } },
+                          upsert: Some(false),
+                      },
+                      WriteModel::DeleteOne {
+                          filter: doc! {
             "_id" => (4)
-        }},
-        WriteModel::InsertOne { document: doc! {
+        },
+                      },
+                      WriteModel::InsertOne {
+                          document: doc! {
             "_id" => (5),
             "x" => (55)
-        }},
-        WriteModel::UpdateOne {
-            filter: doc! { "_id" => (6) },
-            update: doc! { "$set" =>  { "x" => (62) } },
-            upsert: Some(true)
         },
-        WriteModel::InsertOne { document: doc! {
+                      },
+                      WriteModel::UpdateOne {
+                          filter: doc! { "_id" => (6) },
+                          update: doc! { "$set" =>  { "x" => (62) } },
+                          upsert: Some(true),
+                      },
+                      WriteModel::InsertOne {
+                          document: doc! {
             "_id" => (101),
             "x" => ("dalmations")
-        }},
-        WriteModel::InsertOne { document: doc! {
+        },
+                      },
+                      WriteModel::InsertOne {
+                          document: doc! {
             "_id" => (102),
             "x" => ("strawberries")
-        }},
-        WriteModel::InsertOne { document: doc! {
+        },
+                      },
+                      WriteModel::InsertOne {
+                          document: doc! {
             "_id" => (103),
             "x" => ("blueberries")
-        }},
-        WriteModel::InsertOne { document: doc! {
+        },
+                      },
+                      WriteModel::InsertOne {
+                          document: doc! {
             "_id" => (104),
             "x" => ("bananas")
-        }},
-        WriteModel::DeleteMany { filter: doc! {
+        },
+                      },
+                      WriteModel::DeleteMany {
+                          filter: doc! {
             "_id" => { "$gte" => (103) }
-        }},
-    ];
+        },
+                      }];
 
-    let client = Client::connect("localhost", 27017).unwrap();
+    let client = Connector::new().connect("localhost", 27017).unwrap();
     let db = client.db("test-client-bulk");
     let coll = db.collection("bulk_ordered_mix");
     coll.drop().unwrap();

@@ -10,7 +10,7 @@ use command_type::CommandType;
 use connstring::{self, Host};
 use cursor::Cursor;
 use pool::ConnectionPool;
-use stream::StreamConnector;
+use stream::ConnectMethod;
 use wire_protocol::flags::OpQueryFlags;
 
 use std::collections::BTreeMap;
@@ -156,27 +156,27 @@ impl IsMasterResult {
         if let Some(&Bson::Array(ref arr)) = doc.get("hosts") {
             result.hosts = arr.iter()
                 .filter_map(|bson| match *bson {
-                    Bson::String(ref s) => connstring::parse_host(s).ok(),
-                    _ => None,
-                })
+                                Bson::String(ref s) => connstring::parse_host(s).ok(),
+                                _ => None,
+                            })
                 .collect();
         }
 
         if let Some(&Bson::Array(ref arr)) = doc.get("passives") {
             result.passives = arr.iter()
                 .filter_map(|bson| match *bson {
-                    Bson::String(ref s) => connstring::parse_host(s).ok(),
-                    _ => None,
-                })
+                                Bson::String(ref s) => connstring::parse_host(s).ok(),
+                                _ => None,
+                            })
                 .collect();
         }
 
         if let Some(&Bson::Array(ref arr)) = doc.get("arbiters") {
             result.arbiters = arr.iter()
                 .filter_map(|bson| match *bson {
-                    Bson::String(ref s) => connstring::parse_host(s).ok(),
-                    _ => None,
-                })
+                                Bson::String(ref s) => connstring::parse_host(s).ok(),
+                                _ => None,
+                            })
                 .collect();
         }
 
@@ -225,7 +225,7 @@ impl Monitor {
                pool: Arc<ConnectionPool>,
                top_description: Arc<RwLock<TopologyDescription>>,
                server_description: Arc<RwLock<ServerDescription>>,
-               connector: StreamConnector)
+               connector: ConnectMethod)
                -> Monitor {
         Monitor {
             client: client,
@@ -379,12 +379,16 @@ impl Monitor {
             self.execute_update();
 
             if let Ok(description) = self.top_description.read() {
-                self.heartbeat_frequency_ms.store(description.heartbeat_frequency_ms as usize,
-                                                  Ordering::SeqCst);
+                self.heartbeat_frequency_ms
+                    .store(description.heartbeat_frequency_ms as usize,
+                           Ordering::SeqCst);
             }
 
             let frequency = self.heartbeat_frequency_ms.load(Ordering::SeqCst) as u64;
-            guard = self.condvar.wait_timeout(guard, Duration::from_millis(frequency)).unwrap().0;
+            guard = self.condvar
+                .wait_timeout(guard, Duration::from_millis(frequency))
+                .unwrap()
+                .0;
         }
     }
 }

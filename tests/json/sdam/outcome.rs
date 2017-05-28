@@ -56,9 +56,9 @@ impl Outcome {
         };
 
         Ok(Outcome {
-            servers: servers,
-            set_name: set_name,
-            ttype: ttype,
-        })
+               servers: servers,
+               set_name: set_name,
+               ttype: ttype,
+           })
     }
 }

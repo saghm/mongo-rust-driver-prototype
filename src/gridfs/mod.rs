@@ -14,10 +14,10 @@
 //! which you want access without having to load the entire file into memory.
 //!
 //! ```no_run
-//! # use mongodb::{Client, ThreadedClient};
+//! # use mongodb::{Connector, ThreadedClient};
 //! # use mongodb::gridfs::{Store, ThreadedStore};
 //! #
-//! let client = Client::connect("localhost", 27017).unwrap();
+//! let client = Connector::new().connect("localhost", 27017).unwrap();
 //! let db = client.db("grid");
 //! let fs = Store::with_db(db.clone());
 //!
@@ -71,16 +71,16 @@ impl FileCursor {
     pub fn next_n(&mut self, n: i32) -> Result<Vec<File>> {
         let docs = try!(self.cursor.next_n(n));
         Ok(docs.into_iter()
-            .map(|doc| File::with_doc(self.store.clone(), doc.clone()))
-            .collect())
+               .map(|doc| File::with_doc(self.store.clone(), doc.clone()))
+               .collect())
     }
 
     /// Returns the next batch of files.
     pub fn drain_current_batch(&mut self) -> Result<Vec<File>> {
         let docs = try!(self.cursor.drain_current_batch());
         Ok(docs.into_iter()
-            .map(|doc| File::with_doc(self.store.clone(), doc))
-            .collect())
+               .map(|doc| File::with_doc(self.store.clone(), doc))
+               .collect())
     }
 }
 
@@ -126,9 +126,9 @@ impl ThreadedStore for Store {
 
     fn with_prefix(db: Database, prefix: String) -> Store {
         Arc::new(StoreInner {
-            files: db.collection(&format!("{}.files", prefix)[..]),
-            chunks: db.collection(&format!("{}.chunks", prefix)[..]),
-        })
+                     files: db.collection(&format!("{}.files", prefix)[..]),
+                     chunks: db.collection(&format!("{}.chunks", prefix)[..]),
+                 })
     }
 
     fn create(&self, name: String) -> Result<File> {
@@ -139,7 +139,8 @@ impl ThreadedStore for Store {
         let mut options = FindOptions::new();
         options.sort = Some(doc!{ "uploadDate" => 1 });
 
-        match try!(self.files.find_one(Some(doc!{ "filename" => name }), Some(options))) {
+        match try!(self.files
+                       .find_one(Some(doc!{ "filename" => name }), Some(options))) {
             Some(bdoc) => Ok(File::with_doc(self.clone(), bdoc)),
             None => Err(ArgumentError(String::from("File does not exist."))),
         }
@@ -157,10 +158,10 @@ impl ThreadedStore for Store {
             options: Option<FindOptions>)
             -> Result<FileCursor> {
         Ok(FileCursor {
-            store: self.clone(),
-            cursor: try!(self.files.find(filter, options)),
-            err: None,
-        })
+               store: self.clone(),
+               cursor: try!(self.files.find(filter, options)),
+               err: None,
+           })
     }
 
     fn remove(&self, name: String) -> Result<()> {
@@ -177,7 +178,8 @@ impl ThreadedStore for Store {
 
     fn remove_id(&self, id: oid::ObjectId) -> Result<()> {
         try!(self.files.delete_many(doc!{ "_id" => (id.clone()) }, None));
-        try!(self.chunks.delete_many(doc!{ "files_id" => (id.clone()) }, None));
+        try!(self.chunks
+                 .delete_many(doc!{ "files_id" => (id.clone()) }, None));
         Ok(())
     }
 

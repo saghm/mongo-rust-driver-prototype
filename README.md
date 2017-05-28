@@ -83,11 +83,11 @@ fn main() {
 }
 ```
 
-To connect with SSL, use `ClientOptions::with_ssl` and `Client::connect_with_options`. Afterwards, the client can be used as above (note that the server will have to be configured to accept SSL connections and that you'll have to generate your own keys and certificates):
+To connect with SSL, use `Connector::with_ssl` and `Client::connect_with_options`. Afterwards, the client can be used as above (note that the server will have to be configured to accept SSL connections and that you'll have to generate your own keys and certificates):
 
 ```rust
 use bson::Bson;
-use mongodb::{Client, ClientOptions, ThreadedClient};
+use mongodb::{Client, Connector, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
 
 fn main() {
@@ -100,7 +100,7 @@ fn main() {
     // Whether or not to verify that the server certificate is valid. Unless you're just testing out something locally, this should ALWAYS be true.
     let verify_peer = true;
 
-    let options = ClientOptions::with_ssl(ca_file, certificate, key_file, verify_peer);
+    let options = Connector::with_ssl(ca_file, certificate, key_file, verify_peer);
 
     let client = Client::connect_with_options("localhost", 27017, options)
         .expect("Failed to initialize standalone client.");

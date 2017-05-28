@@ -21,13 +21,13 @@ impl FromStr for ReadMode {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
-            "Primary" => ReadMode::Primary,
-            "PrimaryPreferred" => ReadMode::PrimaryPreferred,
-            "Secondary" => ReadMode::Secondary,
-            "SecondaryPreferred" => ReadMode::SecondaryPreferred,
-            "Nearest" => ReadMode::Nearest,
-            _ => return Err(ArgumentError(format!("Could not convert '{}' to ReadMode.", s))),
-        })
+               "Primary" => ReadMode::Primary,
+               "PrimaryPreferred" => ReadMode::PrimaryPreferred,
+               "Secondary" => ReadMode::Secondary,
+               "SecondaryPreferred" => ReadMode::SecondaryPreferred,
+               "Nearest" => ReadMode::Nearest,
+               _ => return Err(ArgumentError(format!("Could not convert '{}' to ReadMode.", s))),
+           })
     }
 }
 
@@ -52,12 +52,12 @@ impl ReadPreference {
         let bson_tag_sets: Vec<_> = self.tag_sets
             .iter()
             .map(|map| {
-                let mut bson_map = bson::Document::new();
-                for (key, val) in map.iter() {
-                    bson_map.insert(&key[..], Bson::String(val.to_owned()));
-                }
-                Bson::Document(bson_map)
-            })
+                     let mut bson_map = bson::Document::new();
+                     for (key, val) in map.iter() {
+                         bson_map.insert(&key[..], Bson::String(val.to_owned()));
+                     }
+                     Bson::Document(bson_map)
+                 })
             .collect();
 
         doc.insert("tag_sets", Bson::Array(bson_tag_sets));
@@ -96,7 +96,12 @@ impl WriteConcern {
     }
 }
 
-pub fn merge_options<T: Into<bson::Document>>(document: bson::Document, options: T) -> bson::Document {
+pub fn merge_options<T: Into<bson::Document>>(document: bson::Document,
+                                              options: T)
+                                              -> bson::Document {
     let options_doc: bson::Document = options.into();
-    document.into_iter().chain(options_doc.into_iter()).collect()
+    document
+        .into_iter()
+        .chain(options_doc.into_iter())
+        .collect()
 }

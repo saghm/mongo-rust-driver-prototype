@@ -71,11 +71,8 @@ impl Collection {
     pub fn name(&self) -> String {
         match self.namespace.find('.') {
             Some(idx) => {
-                let string = &self.namespace[self.namespace
-                    .char_indices()
-                    .nth(idx + 1)
-                    .unwrap()
-                    .0..];
+                let string = &self.namespace
+                                  [self.namespace.char_indices().nth(idx + 1).unwrap().0..];
                 String::from(string)
             }
             None => {
@@ -96,9 +93,7 @@ impl Collection {
                      pipeline: Vec<bson::Document>,
                      options: Option<AggregateOptions>)
                      -> Result<Cursor> {
-        let pipeline_map: Vec<_> = pipeline.into_iter()
-            .map(Bson::Document)
-            .collect();
+        let pipeline_map: Vec<_> = pipeline.into_iter().map(Bson::Document).collect();
 
         let mut spec = doc! {
             "aggregate" => (self.name()),
@@ -121,7 +116,8 @@ impl Collection {
             }
         };
 
-        self.db.command_cursor(spec, CommandType::Aggregate, read_preference)
+        self.db
+            .command_cursor(spec, CommandType::Aggregate, read_preference)
     }
 
     /// Gets the number of documents matching the filter.
@@ -146,7 +142,8 @@ impl Collection {
             spec = merge_options(spec, count_options);
         }
 
-        let result = try!(self.db.command(spec, CommandType::Count, Some(read_preference)));
+        let result = try!(self.db
+                              .command(spec, CommandType::Count, Some(read_preference)));
         match result.get("n") {
             Some(&Bson::I32(n)) => Ok(n as i64),
             Some(&Bson::I64(n)) => Ok(n),
@@ -168,10 +165,12 @@ impl Collection {
             spec.insert("query", Bson::Document(filter_doc));
         }
 
-        let read_preference = options.and_then(|o| o.read_preference)
+        let read_preference = options
+            .and_then(|o| o.read_preference)
             .unwrap_or_else(|| self.read_preference.clone());
 
-        let result = try!(self.db.command(spec, CommandType::Distinct, Some(read_preference)));
+        let result = try!(self.db
+                              .command(spec, CommandType::Distinct, Some(read_preference)));
         match result.get("values") {
             Some(&Bson::Array(ref vals)) => Ok(vals.to_owned()),
             _ => Err(ResponseError(String::from("No values received from server."))),
@@ -359,44 +358,58 @@ impl Collection {
                 WriteModel::InsertOne { document } => inserts.push(document),
                 WriteModel::DeleteOne { filter } => {
                     deletes.push(DeleteModel {
-                        filter: filter,
-                        multi: false,
-                    })
+                                     filter: filter,
+                                     multi: false,
+                                 })
                 }
                 WriteModel::DeleteMany { filter } => {
                     deletes.push(DeleteModel {
-                        filter: filter,
-                        multi: true,
-                    })
+                                     filter: filter,
+                                     multi: true,
+                                 })
                 }
-                WriteModel::ReplaceOne { filter, replacement, upsert } => {
+                WriteModel::ReplaceOne {
+                    filter,
+                    replacement,
+                    upsert,
+                } => {
                     updates.push(UpdateModel {
-                        filter: filter,
-                        update: replacement,
-                        upsert: upsert,
-                        multi: false,
-                    })
+                                     filter: filter,
+                                     update: replacement,
+                                     upsert: upsert,
+                                     multi: false,
+                                 })
                 }
-                WriteModel::UpdateOne { filter, update, upsert } => {
+                WriteModel::UpdateOne {
+                    filter,
+                    update,
+                    upsert,
+                } => {
                     updates.push(UpdateModel {
-                        filter: filter,
-                        update: update,
-                        upsert: upsert,
-                        multi: false,
-                    })
+                                     filter: filter,
+                                     update: update,
+                                     upsert: upsert,
+                                     multi: false,
+                                 })
                 }
-                WriteModel::UpdateMany { filter, update, upsert } => {
+                WriteModel::UpdateMany {
+                    filter,
+                    update,
+                    upsert,
+                } => {
                     updates.push(UpdateModel {
-                        filter: filter,
-                        update: update,
-                        upsert: upsert,
-                        multi: true,
-                    })
+                                     filter: filter,
+                                     update: update,
+                                     upsert: upsert,
+                                     multi: true,
+                                 })
                 }
             }
         }
 
-        vec![Batch::Insert(inserts), Batch::Delete(deletes), Batch::Update(updates)]
+        vec![Batch::Insert(inserts),
+             Batch::Delete(deletes),
+             Batch::Update(updates)]
     }
 
     fn get_ordered_batches(mut requests: VecDeque<WriteModel>) -> Vec<Batch> {
@@ -425,11 +438,15 @@ impl Collection {
                             result: &mut BulkWriteResult,
                             exception: &mut BulkWriteException)
                             -> bool {
-        let models = documents.iter()
+        let models = documents
+            .iter()
             .map(|doc| WriteModel::InsertOne { document: doc.clone() })
             .collect();
 
-        let options = Some(InsertManyOptions { ordered: Some(ordered), ..Default::default() });
+        let options = Some(InsertManyOptions {
+                               ordered: Some(ordered),
+                               ..Default::default()
+                           });
 
         match self.insert_many(documents, options) {
             Ok(insert_result) => {
@@ -448,12 +465,13 @@ impl Collection {
                             result: &mut BulkWriteResult,
                             exception: &mut BulkWriteException)
                             -> bool {
-        let original_models = models.iter()
+        let original_models = models
+            .iter()
             .map(|model| if model.multi {
-                WriteModel::DeleteMany { filter: model.filter.clone() }
-            } else {
-                WriteModel::DeleteOne { filter: model.filter.clone() }
-            })
+                     WriteModel::DeleteMany { filter: model.filter.clone() }
+                 } else {
+                     WriteModel::DeleteOne { filter: model.filter.clone() }
+                 })
             .collect();
 
         match self.bulk_delete(models, ordered, None, CommandType::DeleteMany) {
@@ -474,12 +492,13 @@ impl Collection {
                             result: &mut BulkWriteResult,
                             exception: &mut BulkWriteException)
                             -> bool {
-        let original_models = models.iter()
+        let original_models = models
+            .iter()
             .map(|model| if model.multi {
-                WriteModel::DeleteMany { filter: model.filter.clone() }
-            } else {
-                WriteModel::DeleteOne { filter: model.filter.clone() }
-            })
+                     WriteModel::DeleteMany { filter: model.filter.clone() }
+                 } else {
+                     WriteModel::DeleteOne { filter: model.filter.clone() }
+                 })
             .collect();
 
         match self.bulk_update(models, ordered, None, CommandType::UpdateMany) {
@@ -600,8 +619,10 @@ impl Collection {
                       doc: bson::Document,
                       write_concern: Option<WriteConcern>)
                       -> Result<InsertOneResult> {
-        let options =
-            InsertManyOptions { write_concern: write_concern.clone(), ..Default::default() };
+        let options = InsertManyOptions {
+            write_concern: write_concern.clone(),
+            ..Default::default()
+        };
 
         let (ids, bulk_exception) = try!(self.insert(vec![doc],
                                                      Some(options),
@@ -637,7 +658,9 @@ impl Collection {
                        docs: Vec<bson::Document>,
                        options: Option<InsertManyOptions>)
                        -> Result<InsertManyResult> {
-        let write_concern = options.as_ref().map_or(None, |opts| opts.write_concern.clone());
+        let write_concern = options
+            .as_ref()
+            .map_or(None, |opts| opts.write_concern.clone());
 
         let (ids, exception) =
             try!(self.insert(docs, options, write_concern, CommandType::InsertMany));
@@ -926,8 +949,9 @@ impl Collection {
     pub fn list_indexes(&self) -> Result<Cursor> {
         let mut cmd = bson::Document::new();
         cmd.insert("listIndexes", Bson::String(self.name()));
-        self.db.command_cursor(cmd,
-                               CommandType::ListIndexes,
-                               self.read_preference.to_owned())
+        self.db
+            .command_cursor(cmd,
+                            CommandType::ListIndexes,
+                            self.read_preference.to_owned())
     }
 }

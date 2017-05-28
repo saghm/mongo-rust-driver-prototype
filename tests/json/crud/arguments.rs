@@ -76,10 +76,10 @@ impl Arguments {
         }
 
         Ok(Arguments::Aggregate {
-            pipeline: docs,
-            options: options,
-            out: out,
-        })
+               pipeline: docs,
+               options: options,
+               out: out,
+           })
     }
 
     pub fn count_from_json(object: &Map<String, Value>) -> Arguments {
@@ -102,9 +102,9 @@ impl Arguments {
                                    "`delete` requires document");
 
         Ok(Arguments::Delete {
-            filter: document,
-            many: many,
-        })
+               filter: document,
+               many: many,
+           })
     }
 
     pub fn distinct_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
@@ -118,9 +118,9 @@ impl Arguments {
         };
 
         Ok(Arguments::Distinct {
-            field_name: field_name,
-            filter: filter,
-        })
+               field_name: field_name,
+               filter: filter,
+           })
     }
 
     pub fn find_from_json(object: &Map<String, Value>) -> Arguments {
@@ -145,27 +145,29 @@ impl Arguments {
                                  "`find_one_and_delete` requires filter document");
 
         Ok(Arguments::FindOneAndDelete {
-            filter: filter,
-            options: options,
-        })
+               filter: filter,
+               options: options,
+           })
     }
 
-    pub fn find_one_and_replace_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
+    pub fn find_one_and_replace_from_json(object: &Map<String, Value>)
+                                          -> Result<Arguments, String> {
         let options = FindOneAndUpdateOptions::from_json(object);
 
         let filter = val_or_err!(object.get("filter").map(Value::clone).map(Into::into),
                                  Some(Bson::Document(doc)) => doc,
                                  "`find_one_and_update` requires filter document");
 
-        let replacement = val_or_err!(object.get("replacement").map(Value::clone).map(Into::into),
+        let replacement =
+            val_or_err!(object.get("replacement").map(Value::clone).map(Into::into),
                                  Some(Bson::Document(doc)) => doc,
                                  "`find_one_and_replace` requires replacement document");
 
         Ok(Arguments::FindOneAndReplace {
-            filter: filter,
-            replacement: replacement,
-            options: options,
-        })
+               filter: filter,
+               replacement: replacement,
+               options: options,
+           })
     }
 
     pub fn find_one_and_update_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
@@ -180,10 +182,10 @@ impl Arguments {
                                  "`find_one_and_update` requires update document");
 
         Ok(Arguments::FindOneAndUpdate {
-            filter: filter,
-            update: update,
-            options: options,
-        })
+               filter: filter,
+               update: update,
+               options: options,
+           })
     }
 
     pub fn insert_many_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
@@ -224,10 +226,10 @@ impl Arguments {
                                 Some(Bson::Boolean(b)) => b);
 
         Ok(Arguments::ReplaceOne {
-            filter: filter,
-            replacement: replacement,
-            upsert: upsert,
-        })
+               filter: filter,
+               replacement: replacement,
+               upsert: upsert,
+           })
     }
 
     pub fn update_from_json(object: &Map<String, Value>, many: bool) -> Result<Arguments, String> {
@@ -243,10 +245,10 @@ impl Arguments {
                                 Some(Bson::Boolean(b)) => b);
 
         Ok(Arguments::Update {
-            filter: filter,
-            update: update,
-            upsert: upsert,
-            many: many,
-        })
+               filter: filter,
+               update: update,
+               upsert: upsert,
+               many: many,
+           })
     }
 }
