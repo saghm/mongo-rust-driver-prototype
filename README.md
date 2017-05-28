@@ -49,11 +49,12 @@ Here's a basic example of driver usage:
 
 ```rust
 use bson::Bson;
-use mongodb::{Client, ThreadedClient};
+use mongodb::{Connector, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
 
 fn main() {
-    let client = Client::connect("localhost", 27017)
+    let connnector = Connector::new();
+    let client = connector.connect("localhost", 27017)
         .expect("Failed to initialize standalone client.");
 
     let coll = client.db("test").collection("movies");
@@ -83,7 +84,7 @@ fn main() {
 }
 ```
 
-To connect with SSL, use `Connector::with_ssl` and `Client::connect_with_options`. Afterwards, the client can be used as above (note that the server will have to be configured to accept SSL connections and that you'll have to generate your own keys and certificates):
+To connect with SSL, use `Connector::ssl`. Afterwards, the client can be used as above (note that the server will have to be configured to accept SSL connections and that you'll have to generate your own keys and certificates):
 
 ```rust
 use bson::Bson;
@@ -100,9 +101,9 @@ fn main() {
     // Whether or not to verify that the server certificate is valid. Unless you're just testing out something locally, this should ALWAYS be true.
     let verify_peer = true;
 
-    let options = Connector::with_ssl(ca_file, certificate, key_file, verify_peer);
+    let options = Connector::ssl(ca_file, certificate, key_file, verify_peer);
 
-    let client = Client::connect_with_options("localhost", 27017, options)
+    let client = connector.connect("localhost", 27017)
         .expect("Failed to initialize standalone client.");
 
     // Insert document into 'test.movies' collection
