@@ -84,7 +84,7 @@ fn main() {
 }
 ```
 
-To connect with SSL, use `Connector::ssl`. Afterwards, the client can be used as above (note that the server will have to be configured to accept SSL connections and that you'll have to generate your own keys and certificates):
+To connect with SSL, use `Connector::connect_with_ssl`. Afterwards, the client can be used as above (note that the server will have to be configured to accept SSL connections and that you'll have to generate your own keys and certificates):
 
 ```rust
 use bson::Bson;
@@ -101,9 +101,13 @@ fn main() {
     // Whether or not to verify that the server certificate is valid. Unless you're just testing out something locally, this should ALWAYS be true.
     let verify_peer = true;
 
-    let options = Connector::ssl(ca_file, certificate, key_file, verify_peer);
+    let options = Connector::ssl();
 
-    let client = connector.connect("localhost", 27017)
+    let client = connector.connect_with_ssl("mongodb://localhost:27017", 
+                                            ca_file,
+                                            certificate,
+                                            key_file,
+                                            verify_peer)
         .expect("Failed to initialize standalone client.");
 
     // Insert document into 'test.movies' collection

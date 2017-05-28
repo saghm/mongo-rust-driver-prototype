@@ -10,11 +10,11 @@ fn ssl_connect_and_insert() {
     test_path.push("ssl");
 
     let client = Connector::new()
-        .ssl(test_path.join("ca.pem").to_str().unwrap(),
-             test_path.join("client.crt").to_str().unwrap(),
-             test_path.join("client.key").to_str().unwrap(),
-             false)
-        .connect("127.0.0.1", 27018)
+        .connect_with_ssl("mongodb://127.0.0.1:27018",
+                          test_path.join("ca.pem").to_str().unwrap(),
+                          test_path.join("client.crt").to_str().unwrap(),
+                          test_path.join("client.key").to_str().unwrap(),
+                          false)
         .unwrap();
     let db = client.db("test");
     let coll = db.collection("stuff");

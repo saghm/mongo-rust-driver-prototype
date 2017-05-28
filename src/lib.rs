@@ -198,8 +198,6 @@ pub struct Connector {
     pub server_selection_timeout_ms: i64,
     /// The size of the latency window for selecting suitable servers; default 15 ms.
     pub local_threshold_ms: i64,
-    /// Options for how to connect to the server.
-    pub connect_method: ConnectMethod,
 }
 
 impl Default for Connector {
@@ -209,7 +207,6 @@ impl Default for Connector {
             heartbeat_frequency_ms: DEFAULT_HEARTBEAT_FREQUENCY_MS,
             server_selection_timeout_ms: DEFAULT_SERVER_SELECTION_TIMEOUT_MS,
             local_threshold_ms: DEFAULT_LOCAL_THRESHOLD_MS,
-            connect_method: Default::default(),
         }
     }
 }
@@ -226,29 +223,31 @@ impl Connector {
         self
     }
 
-    #[cfg(feature = "ssl")]
-    /// Creates a new options struct with a specified SSL certificate and key files.
-    pub fn ssl(&mut self,
-               ca_file: &str,
-               certificate_file: &str,
-               key_file: &str,
-               verify_peer: bool)
-               -> &mut Self {
-        self.connect_method =
-            ConnectMethod::with_ssl(ca_file, certificate_file, key_file, verify_peer);
-        self
-    }
-
     pub fn connect(&self, host: &str, port: u16) -> Result<Client> {
-        self.connect_with_connection_string(ConnectionString::new(host, port))
+        self.connect_with_connection_string(ConnectionString::new(host, port), Default::default())
     }
 
     pub fn connect_with_uri(&self, uri: &str) -> Result<Client> {
-        self.connect_with_connection_string(ConnectionString::parse(uri)?)
+        self.connect_with_connection_string(ConnectionString::parse(uri)?, Default::default())
     }
 
+    #[cfg(feature = "ssl")]
+    pub fn connect_with_ssl(&self,
+                            uri: &str,
+                            ca_file: &str,
+                            certificate_file: &str,
+                            key_file: &str,
+                            verify_peer: bool)
+                            -> Result<Client> {
+        let connect_method =
+            ConnectMethod::with_ssl(ca_file, certificate_file, key_file, verify_peer);
+        self.connect_with_connection_string(ConnectionString::parse(uri)?, connect_method)
+    }
+
+
     fn connect_with_connection_string(&self,
-                                      connection_string: ConnectionString)
+                                      connection_string: ConnectionString,
+                                      connect_method: ConnectMethod)
                                       -> Result<Client> {
         let listener = Listener::new();
 
@@ -267,13 +266,13 @@ impl Connector {
         };
 
 
-        let description = TopologyDescription::new(self.connect_method.clone());
+        let description = TopologyDescription::new(connect_method.clone());
 
         let client = Arc::new(ClientInner {
                                   req_id: Arc::new(ATOMIC_ISIZE_INIT),
                                   topology: Topology::new(connection_string.clone(),
                                                           Some(description),
-                                                          self.connect_method.clone())?,
+                                                          connect_method.clone())?,
                                   listener: listener,
                                   log_file: file,
                               });
@@ -291,7 +290,7 @@ impl Connector {
                                          host.clone(),
                                          top_description.clone(),
                                          true,
-                                         self.connect_method.clone());
+                                         connect_method.clone());
 
                 top.servers.insert(host.clone(), server);
             }
