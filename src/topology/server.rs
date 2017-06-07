@@ -3,9 +3,7 @@ use {Client, Result};
 use Error::{self, OperationError};
 
 use bson::oid;
-use connstring::Host;
-use pool::{ConnectionPool, PooledStream};
-use stream::StreamConnector;
+use r2d2::{Pool};
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -13,6 +11,8 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::Ordering;
 use std::thread;
 
+use connstring::Host;
+use stream::{PooledStream, StreamConnector};
 use super::monitor::{IsMasterResult, Monitor};
 use super::TopologyDescription;
 
@@ -84,7 +84,7 @@ pub struct Server {
     /// Monitored server information.
     pub description: Arc<RwLock<ServerDescription>>,
     /// The connection pool for this server.
-    pool: Arc<ConnectionPool>,
+    pool: Arc<Pool<StreamConnector>>,
     /// A reference to the associated server monitor.
     monitor: Arc<Monitor>,
 }
@@ -208,23 +208,17 @@ impl Server {
                host: Host,
                top_description: Arc<RwLock<TopologyDescription>>,
                run_monitor: bool,
-               connector: StreamConnector)
+               pool: Arc<Pool<StreamConnector>>)
                -> Server {
         let description = Arc::new(RwLock::new(ServerDescription::new()));
 
-        // Create new monitor thread
-        let host_clone = host.clone();
-        let desc_clone = description.clone();
-
-        let pool = Arc::new(ConnectionPool::new(host.clone(), connector.clone()));
-
         // Fails silently
         let monitor = Arc::new(Monitor::new(client,
-                                            host_clone,
+                                            host,
                                             pool.clone(),
                                             top_description,
-                                            desc_clone,
-                                            connector));
+                                            description.clone(),
+                                            pool.clone()));
 
         if run_monitor {
             let monitor_clone = monitor.clone();
@@ -234,18 +228,19 @@ impl Server {
         Server {
             host: host,
             pool: pool,
-            description: description.clone(),
+            description: description,
             monitor: monitor,
         }
     }
 
     /// Returns a server stream from the connection pool.
     pub fn acquire_stream(&self) -> Result<PooledStream> {
-        self.pool.acquire_stream()
+        self.pool.get().map_err(From::from)
     }
 
     /// Request an update from the monitor on the server status.
     pub fn request_update(&self) {
         self.monitor.request_update();
     }
+
 }

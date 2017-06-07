@@ -16,6 +16,7 @@ bufstream = "0.1.1"
 byteorder = "0.5.3"
 chrono = "0.3.1"
 data-encoding = "1.2.0"
+r2d2 = "0.7.2"
 rand = "0.3.14"
 rust-crypto = "0.2.31"
 scan_fmt = "0.1.0"
@@ -44,5 +45,5 @@ version = "1.0.0"
 
 [features]
 default = []
-ssl = ["openssl"]
 lint = ["clippy"]
+ssl = ["openssl"]

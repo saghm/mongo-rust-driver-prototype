@@ -1,18 +1,14 @@
 //! MongoDB server set topology and asynchronous monitoring.
-pub mod server;
 pub mod monitor;
+pub mod server;
 
 use {Client, Result};
 use Error::{self, ArgumentError, OperationError};
 
 use bson::oid;
-
-use common::{ReadPreference, ReadMode};
-use connstring::{ConnectionString, Host};
-use pool::PooledStream;
-use stream::StreamConnector;
-
+use r2d2::Pool;
 use rand::{thread_rng, Rng};
+use time;
 
 use std::collections::HashMap;
 use std::i64;
@@ -20,9 +16,11 @@ use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
-use time;
 
+use common::{ReadPreference, ReadMode};
+use connstring::{ConnectionString, Host};
 use self::server::{Server, ServerDescription, ServerType};
+use stream::{PooledStream, StreamConnector};
 
 pub const DEFAULT_HEARTBEAT_FREQUENCY_MS: u32 = 10000;
 pub const DEFAULT_LOCAL_THRESHOLD_MS: i64 = 15;
@@ -64,7 +62,7 @@ pub struct TopologyDescription {
     // The largest set version seen from a primary in the topology.
     max_set_version: Option<i64>,
     compat_error: String,
-    stream_connector: StreamConnector,
+    pool: Arc<Pool<StreamConnector>>,
 }
 
 /// Holds status and connection information about a server set.
@@ -91,7 +89,14 @@ impl FromStr for TopologyType {
 
 impl Default for TopologyDescription {
     fn default() -> Self {
-        TopologyDescription {
+
+    }
+}
+
+impl TopologyDescription {
+    /// Returns a default, unknown topology description.
+    pub fn new(pool: Arc<Pool<StreamConnector>>) -> TopologyDescription {
+       TopologyDescription {
             topology_type: TopologyType::Unknown,
             set_name: String::new(),
             heartbeat_frequency_ms: DEFAULT_HEARTBEAT_FREQUENCY_MS,
@@ -102,17 +107,8 @@ impl Default for TopologyDescription {
             compatible: true,
             compat_error: String::new(),
             max_set_version: None,
-            stream_connector: StreamConnector::Tcp,
+            pool: pool,
         }
-    }
-}
-
-impl TopologyDescription {
-    /// Returns a default, unknown topology description.
-    pub fn new(connector: StreamConnector) -> TopologyDescription {
-        let mut description = TopologyDescription::default();
-        description.stream_connector = connector;
-        description
     }
 
     /// Returns the nearest server stream, calculated by round trip time.
@@ -771,7 +767,7 @@ impl TopologyDescription {
                                          host.clone(),
                                          top_arc.clone(),
                                          run_monitor,
-                                         self.stream_connector.clone());
+                                         self.pool.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
@@ -782,7 +778,7 @@ impl TopologyDescription {
                                          host.clone(),
                                          top_arc.clone(),
                                          run_monitor,
-                                         self.stream_connector.clone());
+                                         self.pool.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
@@ -793,7 +789,7 @@ impl TopologyDescription {
                                          host.clone(),
                                          top_arc.clone(),
                                          run_monitor,
-                                         self.stream_connector.clone());
+                                         self.pool.clone());
                 self.servers.insert(host.clone(), server);
             }
         }
@@ -804,10 +800,10 @@ impl Topology {
     /// Returns a new topology with the given configuration and description.
     pub fn new(config: ConnectionString,
                description: Option<TopologyDescription>,
-               connector: StreamConnector)
+               pool: Arc<Pool<StreamConnector>>)
                -> Result<Topology> {
 
-        let mut options = description.unwrap_or_else(|| TopologyDescription::new(connector));
+        let mut options = description.unwrap_or_else(|| TopologyDescription::new(pool));
 
         if config.hosts.len() > 1 && options.topology_type == TopologyType::Single {
             return Err(ArgumentError(String::from("TopologyType::Single cannot be used with \

@@ -135,6 +135,7 @@ extern crate crypto;
 extern crate data_encoding;
 #[cfg(feature = "ssl")]
 extern crate openssl;
+extern crate r2d2;
 extern crate rand;
 #[macro_use]
 extern crate scan_fmt;
@@ -150,7 +151,6 @@ pub mod connstring;
 pub mod cursor;
 pub mod error;
 pub mod gridfs;
-pub mod pool;
 pub mod stream;
 pub mod topology;
 pub mod wire_protocol;
@@ -175,7 +175,6 @@ use common::{ReadPreference, ReadMode, WriteConcern};
 use connstring::ConnectionString;
 use db::{Database, ThreadedDatabase};
 use error::Error::ResponseError;
-use pool::PooledStream;
 use stream::StreamConnector;
 use topology::{Topology, TopologyDescription, TopologyType, DEFAULT_HEARTBEAT_FREQUENCY_MS,
 DEFAULT_LOCAL_THRESHOLD_MS, DEFAULT_SERVER_SELECTION_TIMEOUT_MS};

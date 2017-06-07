@@ -4,12 +4,13 @@ use Error::{self, ArgumentError, OperationError};
 
 use bson::{self, Bson, oid};
 use chrono::{DateTime, UTC};
+use r2d2::Pool;
+use time;
 
 use coll::options::FindOptions;
 use command_type::CommandType;
 use connstring::{self, Host};
 use cursor::Cursor;
-use pool::ConnectionPool;
 use stream::StreamConnector;
 use wire_protocol::flags::OpQueryFlags;
 
@@ -18,7 +19,6 @@ use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
-use time;
 
 use super::server::{ServerDescription, ServerType};
 use super::{DEFAULT_HEARTBEAT_FREQUENCY_MS, TopologyDescription};
@@ -62,7 +62,7 @@ pub struct Monitor {
     // Host being monitored.
     host: Host,
     // Connection pool for the host.
-    server_pool: Arc<ConnectionPool>,
+    server_pool: Arc<Pool<StreamConnector>>,
     // Topology description to update.
     top_description: Arc<RwLock<TopologyDescription>>,
     // Server description to update.
@@ -70,7 +70,7 @@ pub struct Monitor {
     // Client reference.
     client: Client,
     // Owned, single-threaded pool.
-    personal_pool: Arc<ConnectionPool>,
+    stream: PooledStream,
     // Owned copy of the topology's heartbeat frequency.
     heartbeat_frequency_ms: AtomicUsize,
     // Used for condvar functionality.
@@ -225,7 +225,7 @@ impl Monitor {
                pool: Arc<ConnectionPool>,
                top_description: Arc<RwLock<TopologyDescription>>,
                server_description: Arc<RwLock<ServerDescription>>,
-               connector: StreamConnector)
+               pool: Arc<Pool<StreamConnector>>)
                -> Monitor {
         Monitor {
             client: client,

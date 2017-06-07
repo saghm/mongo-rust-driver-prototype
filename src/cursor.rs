@@ -23,18 +23,18 @@
 //! }
 //! # }
 //! ```
-use {Client, CommandType, Error, ErrorCode, Result, ThreadedClient};
-use apm::{CommandStarted, CommandResult, EventRunner};
-
 use bson::{self, Bson};
-use common::{merge_options, ReadMode, ReadPreference};
-use coll::options::FindOptions;
-use pool::PooledStream;
 use time;
-use wire_protocol::flags::{self, OpQueryFlags};
-use wire_protocol::operations::Message;
 
 use std::collections::vec_deque::VecDeque;
+
+use {Client, CommandType, Error, ErrorCode, Result, ThreadedClient};
+use apm::{CommandStarted, CommandResult, EventRunner};
+use common::{merge_options, ReadMode, ReadPreference};
+use coll::options::FindOptions;
+use stream::PooledStream;
+use wire_protocol::flags::{self, OpQueryFlags};
+use wire_protocol::operations::Message;
 
 // Allows the server to decide the batch size.
 pub const DEFAULT_BATCH_SIZE: i32 = 0;
@@ -253,7 +253,7 @@ impl Cursor {
                                   Some(read_pref))
     }
 
-    pub fn query_with_stream(stream: PooledStream,
+    pub fn query_with_stream(mut stream: PooledStream,
                              client: Client,
                              namespace: String,
                              flags: OpQueryFlags,
@@ -263,16 +263,13 @@ impl Cursor {
                              is_cmd_cursor: bool,
                              read_pref: Option<ReadPreference>)
                              -> Result<Cursor> {
-
-        let mut stream = stream;
-        let mut socket = stream.get_socket();
         let req_id = client.get_req_id();
 
         let index = namespace.find('.').unwrap_or_else(|| namespace.len());
         let db_name = String::from(&namespace[..index]);
         let coll_name = String::from(&namespace[index + 1..]);
         let cmd_name = cmd_type.to_str();
-        let connstring = format!("{}", try!(socket.get_ref().peer_addr()));
+        let connstring = format!("{}", try!(stream.peer_addr()));
 
         let filter = match query.get("$query") {
             Some(&Bson::Document(ref doc)) => doc.clone(),
@@ -321,13 +318,13 @@ impl Cursor {
                      cmd_name,
                      req_id,
                      connstring,
-                     message.write(socket),
+                     message.write(stream.get_mut()),
                      client);
         let reply = try_or_emit!(cmd_type,
                                  cmd_name,
                                  req_id,
                                  connstring,
-                                 Message::read(socket),
+                                 Message::read(stream.get_mut()),
                                  client);
 
         let fin_time = time::precise_time_ns();
@@ -393,7 +390,6 @@ impl Cursor {
 
     fn get_from_stream(&mut self) -> Result<()> {
         let (mut stream, _, _) = try!(self.client.acquire_stream(self.read_preference.to_owned()));
-        let mut socket = stream.get_socket();
 
         let req_id = self.client.get_req_id();
         let get_more = Message::new_get_more(req_id,
@@ -404,7 +400,7 @@ impl Cursor {
         let index = self.namespace.rfind('.').unwrap_or_else(|| self.namespace.len());
         let db_name = String::from(&self.namespace[..index]);
         let cmd_name = String::from("get_more");
-        let connstring = format!("{}", try!(socket.get_ref().peer_addr()));
+        let connstring = format!("{}", try!(stream.peer_addr()));
 
         if self.cmd_type != CommandType::Suppressed {
             let hook_result = self.client.run_start_hooks(&CommandStarted {
@@ -424,9 +420,9 @@ impl Cursor {
                      cmd_name,
                      req_id,
                      connstring,
-                     get_more.write(socket.get_mut()),
+                     get_more.write(stream.get_mut()),
                      self.client);
-        let reply = try!(Message::read(socket.get_mut()));
+        let reply = try!(Message::read(stream.get_mut()));
 
         let (_, v, _) = try!(Cursor::get_bson_and_cid_from_message(reply));
         self.buffer.extend(v);

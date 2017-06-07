@@ -1,7 +1,14 @@
-#[cfg(feature = "ssl")]
-use std::io::{Error, ErrorKind};
-use std::io::{Read, Result, Write};
-use std::net::{SocketAddr, TcpStream};
+use bufstream::BufStream;
+use r2d2::{ManageConnection, PooledConnection};
+
+use std::io::{self, Read, Write};
+use std::net::TcpStream;
+use std::net::SocketAddr;
+use std::ops::Deref;
+
+use error::{Error, Result};
+
+use Client;
 
 #[cfg(feature = "ssl")]
 use openssl::ssl::{Ssl, SslMethod, SslContext, SslStream, SSL_OP_NO_COMPRESSION, SSL_OP_NO_SSLV2,
@@ -9,9 +16,18 @@ use openssl::ssl::{Ssl, SslMethod, SslContext, SslStream, SSL_OP_NO_COMPRESSION,
 #[cfg(feature = "ssl")]
 use openssl::x509::X509_FILETYPE_PEM;
 
+pub type PooledStream = PooledConnection<StreamConnector>;
+
+#[derive(Clone)]
+pub struct StreamConnector {
+    hostname: String,
+    port: u16,
+    connector_type: StreamConnectorType,
+}
+
 /// Encapsulates the functionality for how to connect to the server.
 #[derive(Clone)]
-pub enum StreamConnector {
+pub enum StreamConnectorType {
     /// Connect to the server through a regular TCP stream.
     Tcp,
     #[cfg(feature = "ssl")]
@@ -26,14 +42,26 @@ pub enum StreamConnector {
 
 impl Default for StreamConnector {
     fn default() -> Self {
-        StreamConnector::Tcp
+        Self {
+            hostname: "localhost".to_string(),
+            port: 27017,
+            connector_type: StreamConnectorType::Tcp,
+        }
     }
 }
 
 impl StreamConnector {
+    pub fn new(hostname: &str, port: u16) -> Self {
+        Self {
+            hostname: hostname.to_string(),
+            port: port,
+            connector_type: StreamConnectorType::Tcp,
+        }
+    }
+
     #[cfg(feature = "ssl")]
     /// Creates a StreamConnector that will connect with SSL encryption.
-    /// 
+    ///
     /// The SSL connection will use the cipher with the longest key length available to both the
     /// server and client, with the following caveats:
     ///   * SSLv2 and SSlv3 are disabled
@@ -50,28 +78,39 @@ impl StreamConnector {
     /// `certificate_file` - Path to the file containing the client certificate.
     /// `key_file` - Path to the file containing the client private key.
     /// `verify_peer` - Whether or not to verify that the server's certificate is trusted.
-    pub fn with_ssl(ca_file: &str,
+    pub fn with_ssl(hostname: &str,
+                    port: u16,
+                    ca_file: &str,
                     certificate_file: &str,
                     key_file: &str,
                     verify_peer: bool)
                     -> Self {
-        StreamConnector::Ssl {
-            ca_file: String::from(ca_file),
-            certificate_file: String::from(certificate_file),
-            key_file: String::from(key_file),
-            verify_peer: verify_peer,
+        Self {
+            hostname: hostname.to_string(),
+            port: port,
+            connector_type: StreamConnectorType::Ssl {
+                ca_file: String::from(ca_file),
+                certificate_file: String::from(certificate_file),
+                key_file: String::from(key_file),
+                verify_peer: verify_peer,
+            }
         }
     }
+}
 
-    pub fn connect(&self, hostname: &str, port: u16) -> Result<Stream> {
-        match *self {
-            StreamConnector::Tcp => TcpStream::connect((hostname, port)).map(Stream::Tcp),
+impl ManageConnection for StreamConnector {
+    type Connection = Stream;
+    type Error = Error;
+
+    fn connect(&self) -> Result<Stream> {
+        match self.connector_type {
+            StreamConnectorType::Tcp => Ok(Stream(BufStream::new(StreamType::Tcp(TcpStream::connect((self.hostname.as_str(), self.port))?)))),
             #[cfg(feature = "ssl")]
-            StreamConnector::Ssl { ref ca_file,
+            StreamConnectorType::Ssl { ref ca_file,
                                    ref certificate_file,
                                    ref key_file,
                                    verify_peer } => {
-                let inner_stream = TcpStream::connect((hostname, port))?;
+                let inner_stream = TcpStream::connect((&self.hostname, self.port))?;
 
                 let mut ssl_context = SslContext::builder(SslMethod::tls())?;
                 ssl_context.set_cipher_list("ALL:!EXPORT:!eNULL:!aNULL:HIGH:@STRENGTH")?;
@@ -93,55 +132,73 @@ impl StreamConnector {
                 ssl.set_hostname(hostname)?;
 
                 match ssl.connect(inner_stream) {
-                    Ok(s) => Ok(Stream::Ssl(s)),
-                    Err(e) => Err(Error::new(ErrorKind::Other, e)),
+                    Ok(s) => Ok(Stream(BufStream::new(Stream::Ssl(s)))),
+                    Err(e) => Err(io::Error::new(io::ErrorKind::Other, e)),
                 }
             }
 
         }
     }
+
+    fn is_valid(&self, conn: &mut Stream) -> Result<()> {
+        unimplemented!()
+    }
+
+    fn has_broken(&self, conn: &mut Stream) -> bool {
+        false
+    }
 }
 
-pub enum Stream {
+pub struct Stream(BufStream<StreamType>);
+
+impl Deref for Stream {
+    type Target = BufStream<StreamType>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Stream {
+    pub fn peer_addr(&self) -> io::Result<SocketAddr> {
+        match *self.get_ref() {
+            StreamType::Tcp(ref stream) => stream.peer_addr(),
+            #[cfg(feature = "ssl")]
+            StreamType::Ssl(ref stream) => stream.get_ref().peer_addr(),
+        }
+    }
+}
+
+pub enum StreamType {
     Tcp(TcpStream),
     #[cfg(feature = "ssl")]
     Ssl(SslStream<TcpStream>),
 }
 
-impl Read for Stream {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+impl Read for StreamType {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match *self {
-            Stream::Tcp(ref mut s) => s.read(buf),
+            StreamType::Tcp(ref mut s) => s.read(buf),
             #[cfg(feature = "ssl")]
-            Stream::Ssl(ref mut s) => s.read(buf),
+            StreamType::Ssl(ref mut s) => s.read(buf),
         }
     }
 }
 
-impl Write for Stream {
-    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+impl Write for StreamType {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match *self {
-            Stream::Tcp(ref mut s) => s.write(buf),
+            StreamType::Tcp(ref mut s) => s.write(buf),
             #[cfg(feature = "ssl")]
-            Stream::Ssl(ref mut s) => s.write(buf),
+            StreamType::Ssl(ref mut s) => s.write(buf),
         }
     }
 
-    fn flush(&mut self) -> Result<()> {
+    fn flush(&mut self) -> io::Result<()> {
         match *self {
-            Stream::Tcp(ref mut s) => s.flush(),
+            StreamType::Tcp(ref mut s) => s.flush(),
             #[cfg(feature = "ssl")]
-            Stream::Ssl(ref mut s) => s.flush(),
-        }
-    }
-}
-
-impl Stream {
-    pub fn peer_addr(&self) -> Result<SocketAddr> {
-        match *self {
-            Stream::Tcp(ref stream) => stream.peer_addr(),
-            #[cfg(feature = "ssl")]
-            Stream::Ssl(ref stream) => stream.get_ref().peer_addr(),
+            StreamType::Ssl(ref mut s) => s.flush(),
         }
     }
 }
