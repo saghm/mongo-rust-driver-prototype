@@ -1,5 +1,5 @@
 use bufstream::BufStream;
-use r2d2::{ManageConnection, PooledConnection};
+use r2d2::{Config, ManageConnection, Pool, PooledConnection};
 
 use std::io::{self, Read, Write};
 use std::net::TcpStream;
@@ -17,6 +17,23 @@ use openssl::ssl::{Ssl, SslMethod, SslContext, SslStream, SSL_OP_NO_COMPRESSION,
 use openssl::x509::X509_FILETYPE_PEM;
 
 pub type PooledStream = PooledConnection<StreamConnector>;
+
+pub fn create_pool(hostname: &str,
+                   port: u16,
+                   connector_type: StreamConnectorType,
+                   pool_size: Option<u32>) -> Result<Pool<StreamConnector>> {
+    let mut builder = Config::builder().initialization_fail_fast(false);
+
+    if let Some(size) = pool_size {
+        builder = builder.pool_size(size);
+    }
+
+    Pool::new(builder.build(), StreamConnector {
+        hostname: hostname.to_string(),
+        port,
+        connector_type
+    }).map_err(Error::from)
+}
 
 #[derive(Clone)]
 pub struct StreamConnector {
@@ -40,61 +57,9 @@ pub enum StreamConnectorType {
     },
 }
 
-impl Default for StreamConnector {
+impl Default for StreamConnectorType {
     fn default() -> Self {
-        Self {
-            hostname: "localhost".to_string(),
-            port: 27017,
-            connector_type: StreamConnectorType::Tcp,
-        }
-    }
-}
-
-impl StreamConnector {
-    pub fn new(hostname: &str, port: u16) -> Self {
-        Self {
-            hostname: hostname.to_string(),
-            port: port,
-            connector_type: StreamConnectorType::Tcp,
-        }
-    }
-
-    #[cfg(feature = "ssl")]
-    /// Creates a StreamConnector that will connect with SSL encryption.
-    ///
-    /// The SSL connection will use the cipher with the longest key length available to both the
-    /// server and client, with the following caveats:
-    ///   * SSLv2 and SSlv3 are disabled
-    ///   * Export-strength ciphers are disabled
-    ///   * Ciphers not offering encryption are disabled
-    ///   * Ciphers not offering authentication are disabled
-    ///   * Ciphers with key lengths of 128 or fewer bits are disabled.
-    ///
-    /// Note that TLS compression is disabled for SSL connections.
-    ///
-    /// # Arguments
-    ///
-    /// `ca_file` - Path to the file containing trusted CA certificates.
-    /// `certificate_file` - Path to the file containing the client certificate.
-    /// `key_file` - Path to the file containing the client private key.
-    /// `verify_peer` - Whether or not to verify that the server's certificate is trusted.
-    pub fn with_ssl(hostname: &str,
-                    port: u16,
-                    ca_file: &str,
-                    certificate_file: &str,
-                    key_file: &str,
-                    verify_peer: bool)
-                    -> Self {
-        Self {
-            hostname: hostname.to_string(),
-            port: port,
-            connector_type: StreamConnectorType::Ssl {
-                ca_file: String::from(ca_file),
-                certificate_file: String::from(certificate_file),
-                key_file: String::from(key_file),
-                verify_peer: verify_peer,
-            }
-        }
+        Self::Tcp
     }
 }
 
@@ -106,10 +71,12 @@ impl ManageConnection for StreamConnector {
         match self.connector_type {
             StreamConnectorType::Tcp => Ok(Stream(BufStream::new(StreamType::Tcp(TcpStream::connect((self.hostname.as_str(), self.port))?)))),
             #[cfg(feature = "ssl")]
-            StreamConnectorType::Ssl { ref ca_file,
-                                   ref certificate_file,
-                                   ref key_file,
-                                   verify_peer } => {
+            StreamConnectorType::Ssl {
+                ref ca_file,
+                ref certificate_file,
+                ref key_file,
+                verify_peer
+            } => {
                 let inner_stream = TcpStream::connect((&self.hostname, self.port))?;
 
                 let mut ssl_context = SslContext::builder(SslMethod::tls())?;
@@ -136,7 +103,6 @@ impl ManageConnection for StreamConnector {
                     Err(e) => Err(io::Error::new(io::ErrorKind::Other, e)),
                 }
             }
-
         }
     }
 

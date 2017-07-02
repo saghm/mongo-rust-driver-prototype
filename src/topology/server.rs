@@ -3,7 +3,7 @@ use {Client, Result};
 use Error::{self, OperationError};
 
 use bson::oid;
-use r2d2::{Pool};
+use r2d2::Pool;
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -84,7 +84,7 @@ pub struct Server {
     /// Monitored server information.
     pub description: Arc<RwLock<ServerDescription>>,
     /// The connection pool for this server.
-    pool: Arc<Pool<StreamConnector>>,
+    pool: Pool<StreamConnector>,
     /// A reference to the associated server monitor.
     monitor: Arc<Monitor>,
 }
@@ -154,7 +154,7 @@ impl ServerDescription {
             Some(old_rtt) => {
                 // (rtt / div) + (old_rtt * (div-1)/div)
                 Some(round_trip_time / ROUND_TRIP_DIVISOR +
-                     (old_rtt / (ROUND_TRIP_DIVISOR)) * (ROUND_TRIP_DIVISOR - 1))
+                    (old_rtt / (ROUND_TRIP_DIVISOR)) * (ROUND_TRIP_DIVISOR - 1))
             }
             None => Some(round_trip_time),
         };
@@ -208,8 +208,8 @@ impl Server {
                host: Host,
                top_description: Arc<RwLock<TopologyDescription>>,
                run_monitor: bool,
-               pool: Arc<Pool<StreamConnector>>)
-               -> Server {
+               pool: Pool<StreamConnector>)
+               -> Result<Server> {
         let description = Arc::new(RwLock::new(ServerDescription::new()));
 
         // Fails silently
@@ -217,20 +217,19 @@ impl Server {
                                             host,
                                             pool.clone(),
                                             top_description,
-                                            description.clone(),
-                                            pool.clone()));
+                                            description.clone())?);
 
         if run_monitor {
             let monitor_clone = monitor.clone();
             thread::spawn(move || { monitor_clone.run(); });
         }
 
-        Server {
+        Ok(Server {
             host: host,
             pool: pool,
             description: description,
             monitor: monitor,
-        }
+        })
     }
 
     /// Returns a server stream from the connection pool.
@@ -242,5 +241,4 @@ impl Server {
     pub fn request_update(&self) {
         self.monitor.request_update();
     }
-
 }

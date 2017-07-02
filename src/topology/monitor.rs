@@ -1,24 +1,23 @@
 //! Asynchronous server and topology discovery and monitoring using isMaster results.
-use {Client, Result};
+use {Client, ThreadedClient, Result};
 use Error::{self, ArgumentError, OperationError};
 
 use bson::{self, Bson, oid};
 use chrono::{DateTime, UTC};
-use r2d2::Pool;
+use r2d2::{Pool, Config};
 use time;
 
 use coll::options::FindOptions;
 use command_type::CommandType;
 use connstring::{self, Host};
 use cursor::Cursor;
-use stream::StreamConnector;
+use stream::{create_pool, StreamConnector, StreamConnectorType};
 use wire_protocol::flags::OpQueryFlags;
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
-
 
 use super::server::{ServerDescription, ServerType};
 use super::{DEFAULT_HEARTBEAT_FREQUENCY_MS, TopologyDescription};
@@ -62,7 +61,7 @@ pub struct Monitor {
     // Host being monitored.
     host: Host,
     // Connection pool for the host.
-    server_pool: Arc<Pool<StreamConnector>>,
+    server_pool: Pool<StreamConnector>,
     // Topology description to update.
     top_description: Arc<RwLock<TopologyDescription>>,
     // Server description to update.
@@ -70,7 +69,7 @@ pub struct Monitor {
     // Client reference.
     client: Client,
     // Owned, single-threaded pool.
-    stream: PooledStream,
+    personal_pool: Pool<StreamConnector>,
     // Owned copy of the topology's heartbeat frequency.
     heartbeat_frequency_ms: AtomicUsize,
     // Used for condvar functionality.
@@ -222,23 +221,25 @@ impl Monitor {
     /// Returns a new monitor connected to the server.
     pub fn new(client: Client,
                host: Host,
-               pool: Arc<ConnectionPool>,
+               pool: Pool<StreamConnector>,
                top_description: Arc<RwLock<TopologyDescription>>,
-               server_description: Arc<RwLock<ServerDescription>>,
-               pool: Arc<Pool<StreamConnector>>)
-               -> Monitor {
-        Monitor {
+               server_description: Arc<RwLock<ServerDescription>>)
+               -> Result<Monitor> {
+        Ok(Monitor {
             client: client,
             host: host.clone(),
             server_pool: pool,
-            personal_pool: Arc::new(ConnectionPool::with_size(host, connector, 1)),
+            personal_pool: create_pool(&host.host_name,
+                                       host.port,
+                                       client.get_connector_type(),
+                                       Some(1)),
             top_description: top_description,
             server_description: server_description,
             heartbeat_frequency_ms: AtomicUsize::new(DEFAULT_HEARTBEAT_FREQUENCY_MS as usize),
             dummy_lock: Mutex::new(()),
             condvar: Condvar::new(),
             running: Arc::new(AtomicBool::new(false)),
-        }
+        })
     }
 
     // Set server description error field.
@@ -253,7 +254,6 @@ impl Monitor {
         let mut options = FindOptions::new();
         options.limit = Some(1);
         options.batch_size = Some(1);
-
 
         let flags = OpQueryFlags::with_find_options(&options);
         let mut filter = bson::Document::new();
@@ -295,7 +295,6 @@ impl Monitor {
                                  doc: bson::Document,
                                  round_trip_time: i64)
                                  -> Result<ServerDescription> {
-
         let ismaster_result = IsMasterResult::new(doc);
         let mut server_description = self.server_description.write().unwrap();
         match ismaster_result {
@@ -336,13 +335,16 @@ impl Monitor {
     }
 
     /// Execute isMaster and update the server and topology.
-    fn execute_update(&self) {
+    fn execute_update(&mut self) {
         match self.is_master() {
             Ok((mut cursor, rtt)) => self.update_with_is_master_cursor(&mut cursor, rtt),
             Err(err) => {
                 // Refresh all connections
                 self.server_pool.clear();
-                self.personal_pool.clear();
+                self.personal_pool = create_pool(&host.host_name,
+                                                 host.port,
+                                                 client.get_connector_type(),
+                                                 Some(1));
 
                 let stype = self.server_description.read().unwrap().server_type;
 

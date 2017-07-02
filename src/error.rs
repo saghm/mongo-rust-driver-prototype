@@ -1,7 +1,7 @@
 //! MongoDB Errors and Error Codes.
 use bson::{self, oid};
 use data_encoding;
-use r2d2::GetTimeout;
+use r2d2::{GetTimeout, InitializationError};
 
 use std::{error, fmt, io, result, sync};
 
@@ -73,6 +73,8 @@ pub enum Error {
     MaliciousServerError(MaliciousServerErrorType),
     /// The socket timed out establishing a connection.
     ConnectionTimeoutError(GetTimeout),
+    /// The connection pool could not be initialized.
+    PoolInitializationError(InitializationError),
     /// A standard error with a string description;
     /// a more specific error should generally be used.
     DefaultError(String),
@@ -150,6 +152,12 @@ impl From<GetTimeout> for Error {
     }
 }
 
+impl From<InitializationError> for Error {
+    fn from(err: InitializationError) -> Error {
+        Error::PoolInitializationError(err)
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -180,6 +188,7 @@ impl fmt::Display for Error {
             }
             Error::MaliciousServerError(ref err) => write!(fmt, "{}", err),
             Error::ConnectionTimeoutError(ref inner) => write!(fmt, "{}", inner),
+            Error::PoolInitializationError(ref inner) => write!(fmt, "{}", inner),
             Error::DefaultError(ref inner) => inner.fmt(fmt),
         }
     }
@@ -218,6 +227,7 @@ impl error::Error for Error {
                 }
             }
             Error::ConnectionTimeoutError(ref inner) => inner.description(),
+            Error::PoolInitializationError(ref inner) => inner.description(),
             Error::ArgumentError(ref inner) |
             Error::OperationError(ref inner) |
             Error::ResponseError(ref inner) |
@@ -235,6 +245,7 @@ impl error::Error for Error {
             Error::FromHexError(ref inner) => Some(inner),
             Error::IoError(ref inner) => Some(inner),
             Error::ConnectionTimeoutError(ref inner) => Some(inner),
+            Error::PoolInitializationError(ref inner) => Some(inner),
             Error::ArgumentError(_) |
             Error::OperationError(_) |
             Error::ResponseError(_) |
@@ -410,17 +421,17 @@ pub enum ErrorCode {
 impl ErrorCode {
     pub fn is_network_error(&self) -> bool {
         *self == ErrorCode::HostUnreachable || *self == ErrorCode::HostNotFound ||
-        *self == ErrorCode::NetworkTimeout
+            *self == ErrorCode::NetworkTimeout
     }
 
     pub fn is_interruption(&self) -> bool {
         *self == ErrorCode::Interrupted || *self == ErrorCode::InterruptedAtShutdown ||
-        *self == ErrorCode::ExceededTimeLimit
+            *self == ErrorCode::ExceededTimeLimit
     }
 
     pub fn is_index_creation_error(&self) -> bool {
         *self == ErrorCode::CannotCreateIndex || *self == ErrorCode::IndexOptionsConflict ||
-        *self == ErrorCode::IndexKeySpecsConflict || *self == ErrorCode::IndexAlreadyExists
+            *self == ErrorCode::IndexKeySpecsConflict || *self == ErrorCode::IndexAlreadyExists
     }
 
     fn to_str(&self) -> &str {

@@ -124,7 +124,7 @@ impl Cursor {
         match message {
             Message::OpReply { cursor_id: cid, documents: docs, .. } => {
                 let mut v = VecDeque::new();
-                let mut out_doc = doc!{};
+                let mut out_doc = doc! {};
 
                 if !docs.is_empty() {
                     out_doc = docs[0].clone();
@@ -132,7 +132,7 @@ impl Cursor {
                         // If command doesn't exist or namespace not found, return
                         // an empty array instead of throwing an error.
                         if *code != ErrorCode::CommandNotFound as i32 &&
-                           *code != ErrorCode::NamespaceNotFound as i32 {
+                            *code != ErrorCode::NamespaceNotFound as i32 {
                             if let Some(&Bson::String(ref msg)) = docs[0].get("errmsg") {
                                 return Err(Error::OperationError(msg.to_owned()));
                             }
@@ -151,9 +151,8 @@ impl Cursor {
     }
 
     fn get_bson_and_cursor_info_from_command_message
-        (message: Message)
-         -> Result<(bson::Document, VecDeque<bson::Document>, i64, String)> {
-
+    (message: Message)
+     -> Result<(bson::Document, VecDeque<bson::Document>, i64, String)> {
         let (first, v, _) = try!(Cursor::get_bson_and_cid_from_message(message));
         if v.len() != 1 {
             return Err(Error::CursorNotFoundError);
@@ -166,7 +165,6 @@ impl Cursor {
             if let Some(&Bson::I64(ref id)) = cursor.get("id") {
                 if let Some(&Bson::String(ref ns)) = cursor.get("ns") {
                     if let Some(&Bson::Array(ref batch)) = cursor.get("firstBatch") {
-
                         // Extract first batch documents
                         let map = batch.iter()
                             .filter_map(|bdoc| if let Bson::Document(ref doc) = *bdoc {
@@ -212,7 +210,6 @@ impl Cursor {
                  is_cmd_cursor: bool,
                  read_pref: ReadPreference)
                  -> Result<Cursor> {
-
         // Select a server stream from the topology.
         let (stream, slave_ok, send_read_pref) = if cmd_type.is_write_command() {
             (try!(client.acquire_write_stream()), false, false)
@@ -275,7 +272,6 @@ impl Cursor {
             Some(&Bson::Document(ref doc)) => doc.clone(),
             _ => query.clone(),
         };
-
 
         let command = match cmd_type {
             CommandType::Find => {
@@ -457,7 +453,7 @@ impl Cursor {
     /// # Return value
     ///
     /// Returns a vector containing the BSON documents that were read.
-    #[deprecated(since="0.2.8", note="this method uses 20 as the default batch size instead of letting the server decide; using `drain_current_batch` is recommended instead")]
+    #[deprecated(since = "0.2.8", note = "this method uses 20 as the default batch size instead of letting the server decide; using `drain_current_batch` is recommended instead")]
     pub fn next_batch(&mut self) -> Result<Vec<bson::Document>> {
         let batch_size = if self.batch_size == 0 {
             20

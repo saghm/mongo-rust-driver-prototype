@@ -6,7 +6,7 @@ use {Client, Result};
 use Error::{self, ArgumentError, OperationError};
 
 use bson::oid;
-use r2d2::Pool;
+use r2d2::{Config, Pool};
 use rand::{thread_rng, Rng};
 use time;
 
@@ -20,7 +20,7 @@ use std::time::Duration;
 use common::{ReadPreference, ReadMode};
 use connstring::{ConnectionString, Host};
 use self::server::{Server, ServerDescription, ServerType};
-use stream::{PooledStream, StreamConnector};
+use stream::{create_pool, PooledStream, StreamConnector, StreamConnectorType};
 
 pub const DEFAULT_HEARTBEAT_FREQUENCY_MS: u32 = 10000;
 pub const DEFAULT_LOCAL_THRESHOLD_MS: i64 = 15;
@@ -62,7 +62,7 @@ pub struct TopologyDescription {
     // The largest set version seen from a primary in the topology.
     max_set_version: Option<i64>,
     compat_error: String,
-    pool: Arc<Pool<StreamConnector>>,
+    pool: Pool<StreamConnector>,
 }
 
 /// Holds status and connection information about a server set.
@@ -78,25 +78,19 @@ impl FromStr for TopologyType {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
-               "Single" => TopologyType::Single,
-               "ReplicaSetNoPrimary" => TopologyType::ReplicaSetNoPrimary,
-               "ReplicaSetWithPrimary" => TopologyType::ReplicaSetWithPrimary,
-               "Sharded" => TopologyType::Sharded,
-               _ => TopologyType::Unknown,
-           })
-    }
-}
-
-impl Default for TopologyDescription {
-    fn default() -> Self {
-
+            "Single" => TopologyType::Single,
+            "ReplicaSetNoPrimary" => TopologyType::ReplicaSetNoPrimary,
+            "ReplicaSetWithPrimary" => TopologyType::ReplicaSetWithPrimary,
+            "Sharded" => TopologyType::Sharded,
+            _ => TopologyType::Unknown,
+        })
     }
 }
 
 impl TopologyDescription {
     /// Returns a default, unknown topology description.
-    pub fn new(pool: Arc<Pool<StreamConnector>>) -> TopologyDescription {
-       TopologyDescription {
+    pub fn new(host: &str, port: u16, connector_type: StreamConnectorType, pool_size: Option<u32>) -> TopologyDescription {
+        TopologyDescription {
             topology_type: TopologyType::Unknown,
             set_name: String::new(),
             heartbeat_frequency_ms: DEFAULT_HEARTBEAT_FREQUENCY_MS,
@@ -107,8 +101,12 @@ impl TopologyDescription {
             compatible: true,
             compat_error: String::new(),
             max_set_version: None,
-            pool: pool,
+            pool: create_pool(host, port, connector_type, pool_size),
         }
+    }
+
+    pub fn get_pool_handle(&self) -> Pool<StreamConnector> {
+        self.pool.clone()
     }
 
     /// Returns the nearest server stream, calculated by round trip time.
@@ -171,7 +169,7 @@ impl TopologyDescription {
 
         // Filter hosts by tagsets
         if self.topology_type != TopologyType::Sharded &&
-           self.topology_type != TopologyType::Single {
+            self.topology_type != TopologyType::Single {
             self.filter_hosts(&mut hosts, read_preference);
         }
 
@@ -308,15 +306,15 @@ impl TopologyDescription {
                 // If no tags match but the replica set has a primary that is returnable with
                 // the given ReadMode, return that primary server.
                 if self.topology_type == TopologyType::ReplicaSetWithPrimary &&
-                   (read_preference.mode == ReadMode::Primary ||
-                    read_preference.mode == ReadMode::PrimaryPreferred) {
+                    (read_preference.mode == ReadMode::Primary ||
+                        read_preference.mode == ReadMode::PrimaryPreferred) {
                     // Retain primaries.
                     hosts.retain(|host| if let Some(server) = self.servers.get(host) {
-                                     let description = server.description.read().unwrap();
-                                     description.server_type == ServerType::RSPrimary
-                                 } else {
-                                     false
-                                 });
+                        let description = server.description.read().unwrap();
+                        description.server_type == ServerType::RSPrimary
+                    } else {
+                        false
+                    });
                 } else {
                     // If no tags match and the above case does not occur,
                     // filter out all provided servers.
@@ -372,19 +370,19 @@ impl TopologyDescription {
                       }
                   },
                   |acc, host| {
-                // Compare the previous shortest rtt with the host rtt.
-                if let Some(server) = self.servers.get(host) {
-                    if let Ok(description) = server.description.read() {
-                        let item_rtt = description.round_trip_time.unwrap_or(i64::MAX);
-                        if acc < item_rtt {
-                            return acc;
-                        } else {
-                            return item_rtt;
-                        }
-                    }
-                }
-                acc
-            });
+                      // Compare the previous shortest rtt with the host rtt.
+                      if let Some(server) = self.servers.get(host) {
+                          if let Ok(description) = server.description.read() {
+                              let item_rtt = description.round_trip_time.unwrap_or(i64::MAX);
+                              if acc < item_rtt {
+                                  return acc;
+                              } else {
+                                  return item_rtt;
+                              }
+                          }
+                      }
+                      acc
+                  });
 
         // If the shortest rtt is i64::MAX, all server rtts are None or could not be read.
         if shortest_rtt == i64::MAX {
@@ -422,15 +420,15 @@ impl TopologyDescription {
                 (self.servers
                      .keys()
                      .filter_map(|host| {
-                    if let Some(server) = self.servers.get(host) {
-                        if let Ok(description) = server.description.read() {
-                            if description.server_type == ServerType::RSPrimary {
-                                return Some(host.clone());
-                            }
-                        }
-                    }
-                    None
-                })
+                         if let Some(server) = self.servers.get(host) {
+                             if let Ok(description) = server.description.read() {
+                                 if description.server_type == ServerType::RSPrimary {
+                                     return Some(host.clone());
+                                 }
+                             }
+                         }
+                         None
+                     })
                      .collect(),
                  true)
             }
@@ -450,7 +448,6 @@ impl TopologyDescription {
             TopologyType::Single => Ok((self.servers.keys().cloned().collect(), true)),
             TopologyType::Sharded => Ok((self.servers.keys().cloned().collect(), false)),
             _ => {
-
                 // Handle replica set server selection
                 // Short circuit if nearest
                 if read_preference.mode == ReadMode::Nearest {
@@ -507,21 +504,25 @@ impl TopologyDescription {
     }
 
     /// Update the topology description, but don't start any monitors for new servers.
+    ///
+    /// Returns an error if unable to connect to the server.
     pub fn update_without_monitor(&mut self,
                                   host: Host,
                                   description: ServerDescription,
                                   client: Client,
-                                  top_arc: Arc<RwLock<TopologyDescription>>) {
-        self.update_private(host, description, client, top_arc, false);
+                                  top_arc: Arc<RwLock<TopologyDescription>>) -> Result<()> {
+        self.update_private(host, description, client, top_arc, false)
     }
 
     /// Updates the topology description based on an updated server description.
+    ///
+    /// Returns an error if unable to connect to the server.
     pub fn update(&mut self,
                   host: Host,
                   description: ServerDescription,
                   client: Client,
-                  top_arc: Arc<RwLock<TopologyDescription>>) {
-        self.update_private(host, description, client, top_arc, true);
+                  top_arc: Arc<RwLock<TopologyDescription>>) -> Result<()> {
+        self.update_private(host, description, client, top_arc, true)
     }
 
     // Internal topology description update helper.
@@ -531,7 +532,6 @@ impl TopologyDescription {
                       client: Client,
                       top_arc: Arc<RwLock<TopologyDescription>>,
                       run_monitor: bool) {
-
         let stype = description.server_type;
         match self.topology_type {
             TopologyType::Unknown => {
@@ -539,14 +539,14 @@ impl TopologyDescription {
                     ServerType::Standalone => self.update_unknown_with_standalone(host),
                     ServerType::Mongos => self.topology_type = TopologyType::Sharded,
                     ServerType::RSPrimary => {
-                        self.update_rs_from_primary(host, description, client, top_arc, run_monitor)
+                        self.update_rs_from_primary(host, description, client, top_arc, run_monitor)?
                     }
                     ServerType::RSSecondary | ServerType::RSArbiter | ServerType::RSOther => {
                         self.update_rs_without_primary(host,
                                                        description,
                                                        client,
                                                        top_arc,
-                                                       run_monitor)
+                                                       run_monitor)?
                     }
                     _ => (),
                 }
@@ -558,14 +558,14 @@ impl TopologyDescription {
                         self.check_if_has_primary();
                     }
                     ServerType::RSPrimary => {
-                        self.update_rs_from_primary(host, description, client, top_arc, run_monitor)
+                        self.update_rs_from_primary(host, description, client, top_arc, run_monitor)?
                     }
                     ServerType::RSSecondary | ServerType::RSArbiter | ServerType::RSOther => {
                         self.update_rs_without_primary(host,
                                                        description,
                                                        client,
                                                        top_arc,
-                                                       run_monitor)
+                                                       run_monitor)?
                     }
                     _ => self.check_if_has_primary(),
                 }
@@ -577,10 +577,10 @@ impl TopologyDescription {
                         self.check_if_has_primary();
                     }
                     ServerType::RSPrimary => {
-                        self.update_rs_from_primary(host, description, client, top_arc, run_monitor)
+                        self.update_rs_from_primary(host, description, client, top_arc, run_monitor)?
                     }
                     ServerType::RSSecondary | ServerType::RSArbiter | ServerType::RSOther => {
-                        self.update_rs_with_primary_from_member(host, description)
+                        self.update_rs_with_primary_from_member(host, description)?
                     }
                     _ => self.check_if_has_primary(),
                 }
@@ -609,7 +609,6 @@ impl TopologyDescription {
         self.topology_type = TopologyType::ReplicaSetNoPrimary;
     }
 
-
     // Updates an unknown topology with a new standalone server description.
     fn update_unknown_with_standalone(&mut self, host: Host) {
         if !self.servers.contains_key(&host) {
@@ -629,10 +628,9 @@ impl TopologyDescription {
                               description: ServerDescription,
                               client: Client,
                               top_arc: Arc<RwLock<TopologyDescription>>,
-                              run_monitor: bool) {
-
+                              run_monitor: bool) -> Result<()> {
         if !self.servers.contains_key(&host) {
-            return;
+            return Ok(());
         }
 
         if self.set_name.is_empty() {
@@ -642,15 +640,15 @@ impl TopologyDescription {
             // provided by the user or previously discovered.
             self.servers.remove(&host);
             self.check_if_has_primary();
-            return;
+            return Ok(());
         }
 
         if description.set_version.is_some() && description.election_id.is_some() {
             if self.max_set_version.is_some() && self.max_election_id.is_some() &&
-               (self.max_set_version.unwrap() > description.set_version.unwrap() ||
-                (self.max_set_version.unwrap() == description.set_version.unwrap() &&
-                 self.max_election_id.as_ref().unwrap() >
-                 description.election_id.as_ref().unwrap())) {
+                (self.max_set_version.unwrap() > description.set_version.unwrap() ||
+                    (self.max_set_version.unwrap() == description.set_version.unwrap() &&
+                        self.max_election_id.as_ref().unwrap() >
+                            description.election_id.as_ref().unwrap())) {
                 // Stale primary
                 if let Some(server) = self.servers.get(&host) {
                     {
@@ -661,15 +659,15 @@ impl TopologyDescription {
                     }
                 }
                 self.check_if_has_primary();
-                return;
+                return Ok(());
             } else {
                 self.max_election_id = description.election_id.clone();
             }
         }
 
         if description.set_version.is_some() &&
-           (self.max_set_version.is_none() ||
-            description.set_version.unwrap() > self.max_set_version.unwrap()) {
+            (self.max_set_version.is_none() ||
+                description.set_version.unwrap() > self.max_set_version.unwrap()) {
             self.max_set_version = description.set_version;
         }
 
@@ -685,13 +683,13 @@ impl TopologyDescription {
             }
         }
 
-        self.add_missing_hosts(&description, client, top_arc, run_monitor);
+        self.add_missing_hosts(&description, client, top_arc, run_monitor)?;
 
         // Remove hosts that are not reported by the primary.
         let mut hosts_to_remove = Vec::new();
         for host in self.servers.keys() {
             if !description.hosts.contains(host) && !description.passives.contains(host) &&
-               !description.arbiters.contains(host) {
+                !description.arbiters.contains(host) {
                 hosts_to_remove.push(host.clone());
             }
         }
@@ -701,6 +699,7 @@ impl TopologyDescription {
         }
 
         self.check_if_has_primary();
+        Ok(())
     }
 
     // Updates a replica set topology with a missing primary.
@@ -709,11 +708,10 @@ impl TopologyDescription {
                                  description: ServerDescription,
                                  client: Client,
                                  top_arc: Arc<RwLock<TopologyDescription>>,
-                                 run_monitor: bool) {
-
+                                 run_monitor: bool) -> Result<()> {
         self.topology_type = TopologyType::ReplicaSetNoPrimary;
         if !self.servers.contains_key(&host) {
-            return;
+            return Ok(());
         }
 
         if self.set_name.is_empty() {
@@ -721,10 +719,10 @@ impl TopologyDescription {
         } else if self.set_name != description.set_name {
             self.servers.remove(&host);
             self.check_if_has_primary();
-            return;
+            return Ok(());
         }
 
-        self.add_missing_hosts(&description, client, top_arc, run_monitor);
+        self.add_missing_hosts(&description, client, top_arc, run_monitor)?;
 
         if let Some(me) = description.me {
             if host != me {
@@ -759,15 +757,14 @@ impl TopologyDescription {
                          description: &ServerDescription,
                          client: Client,
                          top_arc: Arc<RwLock<TopologyDescription>>,
-                         run_monitor: bool) {
-
+                         run_monitor: bool) -> Result<()> {
         for host in &description.hosts {
             if !self.servers.contains_key(host) {
                 let server = Server::new(client.clone(),
                                          host.clone(),
                                          top_arc.clone(),
                                          run_monitor,
-                                         self.pool.clone());
+                                         self.pool.clone())?;
                 self.servers.insert(host.clone(), server);
             }
         }
@@ -778,7 +775,7 @@ impl TopologyDescription {
                                          host.clone(),
                                          top_arc.clone(),
                                          run_monitor,
-                                         self.pool.clone());
+                                         self.pool.clone())?;
                 self.servers.insert(host.clone(), server);
             }
         }
@@ -789,7 +786,7 @@ impl TopologyDescription {
                                          host.clone(),
                                          top_arc.clone(),
                                          run_monitor,
-                                         self.pool.clone());
+                                         self.pool.clone())?;
                 self.servers.insert(host.clone(), server);
             }
         }
@@ -800,10 +797,13 @@ impl Topology {
     /// Returns a new topology with the given configuration and description.
     pub fn new(config: ConnectionString,
                description: Option<TopologyDescription>,
-               pool: Arc<Pool<StreamConnector>>)
+               connector_type: StreamConnectorType,
+               pool_size: Option<u32>)
                -> Result<Topology> {
-
-        let mut options = description.unwrap_or_else(|| TopologyDescription::new(pool));
+        let mut options = description.unwrap_or_else(|| {
+            let host = config.hosts[0];
+            TopologyDescription::new(&host.hostname, host.port, connector_type, pool_size);
+        });
 
         if config.hosts.len() > 1 && options.topology_type == TopologyType::Single {
             return Err(ArgumentError(String::from("TopologyType::Single cannot be used with \
@@ -818,7 +818,7 @@ impl Topology {
         }
 
         if !options.set_name.is_empty() &&
-           options.topology_type != TopologyType::ReplicaSetNoPrimary {
+            options.topology_type != TopologyType::ReplicaSetNoPrimary {
             return Err(ArgumentError(String::from("TopologyType must be ReplicaSetNoPrimary if \
                                                    set_name is provided.")));
         }
@@ -826,9 +826,9 @@ impl Topology {
         let top_description = Arc::new(RwLock::new(options));
 
         Ok(Topology {
-               config: config,
-               description: top_description,
-           })
+            config: config,
+            description: top_description,
+        })
     }
 
     // Private server stream acquisition helper.
