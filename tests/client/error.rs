@@ -6,10 +6,10 @@ use mongodb::Error;
 fn validate_write_result() {
     let doc =
         doc! {
-        "ok" => 1,
-        "n" => 5,
-        "nModified" => 5
-    };
+            "ok" => 1,
+            "n" => 5,
+            "nModified" => 5
+        };
 
     let result = BulkWriteException::validate_bulk_write_result(doc, WriteConcern::new());
     assert!(result.is_ok());
@@ -19,24 +19,24 @@ fn validate_write_result() {
 fn invalidate_write_result() {
     let err1 =
         doc! {
-        "index" => 0,
-        "code" => 1054,
-        "errmsg" => "Unreal error message."
-    };
+            "index" => 0,
+            "code" => 1054,
+            "errmsg" => "Unreal error message."
+        };
 
     let err2 =
         doc! {
-        "index" => 3,
-        "code" => 2105,
-        "errmsg" => "Modestly real error message."
-    };
+            "index" => 3,
+            "code" => 2105,
+            "errmsg" => "Modestly real error message."
+     };
 
     let doc =
         doc! {
-        "ok" => 1,
-        "n" => 5,
-        "nModified" => 3,
-        "writeConcernError" => {
+            "ok" => 1,
+            "n" => 5,
+            "nModified" => 3,
+            "writeConcernError" => {
             "code" => 1124,
             "errmsg" => "Real error message."
         },
@@ -75,9 +75,9 @@ fn invalidate_write_result() {
 fn parse_write_concern_error() {
     let doc =
         doc! {
-        "code" => 1124,
-        "errmsg" => "Real error message."
-    };
+            "code" => 1124,
+            "errmsg" => "Real error message."
+        };
 
     let result = WriteConcernError::parse(doc, WriteConcern::new());
     match result {
@@ -105,9 +105,9 @@ fn parse_invalid_write_concern_error() {
 fn parse_write_error() {
     let doc =
         doc! {
-        "code" => 1054,
-        "errmsg" => "Unreal error message."
-    };
+            "code" => 1054,
+            "errmsg" => "Unreal error message."
+        };
 
     let result = WriteError::parse(doc);
     match result {

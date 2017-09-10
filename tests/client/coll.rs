@@ -385,14 +385,18 @@ fn distinct() {
 
     // Insert documents
     let doc1 =
-        doc! { "title" => "Jaws",
-                      "director" => "MB" };
+        doc! {
+            "title" => "Jaws",
+            "director" => "MB"
+        };
 
     let doc2 = doc! { "title" => "Back to the Future" };
 
     let doc3 =
-        doc! { "title" => "12 Angry Men",
-                      "director" => "MB" };
+        doc! {
+            "title" => "12 Angry Men",
+            "director" => "MB"
+        };
 
     let mut vec = vec![doc1.clone()];
     for _ in 0..4 {
@@ -761,33 +765,21 @@ fn create_text_hashed_2d_2dsphere_index() {
     let db = client.db("test-client-coll");
     let coll = db.collection("create_text_hashed_2d_2dsphere_index");
 
-    coll.create_index(
-        doc!{
-        "a" => "text"
-    },
-        None,
-    ).expect("Failed to create text indexes");
+    coll.create_index(doc! {"a" => "text" }, None).expect(
+        "Failed to create text indexes",
+    );
 
-    coll.create_index(
-        doc!{
-        "b" => "hashed"
-    },
-        None,
-    ).expect("Failed to create hashed indexes");
+    coll.create_index(doc! { "b" => "hashed" }, None).expect(
+        "Failed to create hashed indexes",
+    );
 
-    coll.create_index(
-        doc!{
-        "c" => "2d"
-    },
-        None,
-    ).expect("Failed to create 2d indexes");
+    coll.create_index(doc! { "c" => "2d" }, None).expect(
+        "Failed to create 2d indexes",
+    );
 
-    coll.create_index(
-        doc!{
-        "d" => "2dsphere"
-    },
-        None,
-    ).expect("Failed to create 2dsphere indexes");
+    coll.create_index(doc! { "d" => "2dsphere" }, None).expect(
+        "Failed to create 2dsphere indexes",
+    );
 }
 
 #[test]
@@ -820,9 +812,9 @@ fn create_query_text_index() {
     });
     coll.create_index(
         doc!{
-        "title" => "text",
-        "content" => "text"
-    },
+            "title" => "text",
+            "content" => "text"
+        },
         Some(index_opt),
     ).unwrap();
 

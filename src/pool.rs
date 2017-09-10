@@ -121,8 +121,7 @@ impl ConnectionPool {
         let mut locked = try!(self.inner.lock());
         if locked.size == 0 {
             return Err(OperationError(String::from(
-                "The connection pool does not allow \
-                                                    connections; increase the size of the pool.",
+                "The connection pool does not allow connections; increase the size of the pool.",
             )));
         }
 

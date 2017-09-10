@@ -57,9 +57,11 @@ impl Arguments {
         let options = AggregateOptions::from_json(object);
 
         let array =
-            val_or_err!(object.get("pipeline").map(Value::clone).map(Into::into),
-                                Some(Bson::Array(arr)) => arr,
-                                "`aggregate` requires pipeline array");
+            val_or_err!(
+                object.get("pipeline").map(Value::clone).map(Into::into),
+                Some(Bson::Array(arr)) => arr,
+                "`aggregate` requires pipeline array"
+            );
 
         let mut docs = vec![];
         let mut out = false;
@@ -103,9 +105,11 @@ impl Arguments {
 
     pub fn delete_from_json(object: &Map<String, Value>, many: bool) -> Result<Arguments, String> {
         let document =
-            val_or_err!(object.get("filter").map(Value::clone).map(Into::into),
-                                   Some(Bson::Document(doc)) => doc,
-                                   "`delete` requires document");
+            val_or_err!(
+                object.get("filter").map(Value::clone).map(Into::into),
+                Some(Bson::Document(doc)) => doc,
+                "`delete` requires document"
+            );
 
         Ok(Arguments::Delete {
             filter: document,
@@ -114,9 +118,11 @@ impl Arguments {
     }
 
     pub fn distinct_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
-        let field_name = val_or_err!(object.get("fieldName").map(Value::clone).map(Into::into),
-                                     Some(Bson::String(ref s)) => s.to_owned(),
-                                     "`distinct` requires field name");
+        let field_name = val_or_err!(
+            object.get("fieldName").map(Value::clone).map(Into::into),
+            Some(Bson::String(ref s)) => s.to_owned(),
+            "`distinct` requires field name"
+        );
 
         let filter = match object.get("filter").map(Value::clone).map(Into::into) {
             Some(Bson::Document(doc)) => Some(doc),

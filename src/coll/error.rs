@@ -354,8 +354,7 @@ impl BulkWriteException {
         let w_errs = if let Some(&Bson::Array(ref errors)) = result.get("writeErrors") {
             if errors.is_empty() {
                 return Err(Error::ResponseError(String::from(
-                    "Server indicates a write error, \
-                                                              but none were found.",
+                    "Server indicates a write error, but none were found.",
                 )));
             }
 
@@ -364,10 +363,9 @@ impl BulkWriteException {
                 if let Bson::Document(ref doc) = *err {
                     vec.push(try!(BulkWriteError::parse(doc.clone())));
                 } else {
-                    return Err(Error::ResponseError(String::from(
-                        "WriteError provided was not \
-                                                                  a bson document.",
-                    )));
+                    return Err(Error::ResponseError(
+                        String::from("WriteError provided was not a bson document."),
+                    ));
                 }
             }
             vec

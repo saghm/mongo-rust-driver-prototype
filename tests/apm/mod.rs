@@ -128,8 +128,7 @@ fn logging() {
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert!(line.starts_with(
-        "COMMAND.drop_collection 127.0.0.1:27017 COMPLETED: { ns: \
-                              \"test-apm-mod.logging\", nIndexesWas: 1, ok: 1 } (",
+        "COMMAND.drop_collection 127.0.0.1:27017 COMPLETED: { ns: \"test-apm-mod.logging\", nIndexesWas: 1, ok: 1 } (",
     ));
     assert!(line.ends_with(" ns)\n"));
 
@@ -137,8 +136,7 @@ fn logging() {
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert_eq!(
-        "COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ \
-                _id: 1 }] }\n",
+        "COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ _id: 1 }] }\n",
         &line
     );
 
@@ -159,8 +157,7 @@ fn logging() {
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert_eq!(
-        "COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ \
-                _id: 2 }] }\n",
+        "COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ _id: 2 }] }\n",
         &line
     );
 
@@ -174,8 +171,7 @@ fn logging() {
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert_eq!(
-        "COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ \
-                _id: 3 }] }\n",
+        "COMMAND.insert_one 127.0.0.1:27017 STARTED: { insert: \"logging\", documents: [{ _id: 3 }] }\n",
         &line
     );
 
@@ -189,8 +185,7 @@ fn logging() {
     line.clear();
     read_first_non_monitor_line(&mut file, &mut line);
     assert_eq!(
-        "COMMAND.find 127.0.0.1:27017 STARTED: { find: \"logging\", filter: { _id: { \
-                $gt: 1 } } }\n",
+        "COMMAND.find 127.0.0.1:27017 STARTED: { find: \"logging\", filter: { _id: { $gt: 1 } } }\n",
         &line
     );
 
@@ -199,8 +194,7 @@ fn logging() {
     read_first_non_monitor_line(&mut file, &mut line);
     assert!(line.starts_with(
         "COMMAND.find 127.0.0.1:27017 COMPLETED: { cursor: { id: 0, ns: \
-                              \"test-apm-mod.logging\", firstBatch: [{ _id: 2 }, { _id: 3 }] }, \
-                              ok: 1 } (",
+            \"test-apm-mod.logging\", firstBatch: [{ _id: 2 }, { _id: 3 }] }, ok: 1 } (",
     ));
     assert!(line.ends_with(" ns)\n"));
 

@@ -172,8 +172,7 @@ impl Authenticator {
         // Sanity check
         if client_key.len() != client_signature.len() {
             return Err(DefaultError(String::from(
-                "Generated client key and/or client signature \
-                                                  is invalid",
+                "Generated client key and/or client signature is invalid",
             )));
         }
 
@@ -190,10 +189,10 @@ impl Authenticator {
 
         let next_doc =
             doc! {
-            "saslContinue" => 1,
-            "payload" => binary,
-            "conversationId" => (initial_data.conversation_id.clone())
-        };
+                "saslContinue" => 1,
+                "payload" => binary,
+                "conversationId" => (initial_data.conversation_id.clone())
+            };
 
         let response = try!(self.db.command(next_doc, Suppressed, None));
 
@@ -207,10 +206,10 @@ impl Authenticator {
     fn finish(&self, conversation_id: Bson, auth_data: AuthData) -> Result<()> {
         let final_doc =
             doc! {
-            "saslContinue" => 1,
-            "payload" => (Binary(Generic, vec![])),
-            "conversationId" => conversation_id
-        };
+                "saslContinue" => 1,
+                "payload" => (Binary(Generic, vec![])),
+                "conversationId" => conversation_id
+            };
 
         // Compute server key
         let mut server_key_hmac = Hmac::new(Sha1::new(), &auth_data.salted_password[..]);

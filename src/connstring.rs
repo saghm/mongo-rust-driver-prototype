@@ -103,8 +103,7 @@ impl ConnectionString {
 pub fn parse(address: &str) -> Result<ConnectionString> {
     if !address.starts_with(URI_SCHEME) {
         return Err(ArgumentError(String::from(
-            "MongoDB connection string must start with \
-                                               'mongodb://'.",
+            "MongoDB connection string must start with 'mongodb://'.",
         )));
     }
 
@@ -134,8 +133,7 @@ pub fn parse(address: &str) -> Result<ConnectionString> {
 
     if path_str.is_empty() && host_str.contains('?') {
         return Err(ArgumentError(String::from(
-            "A '/' is required between the host list and any \
-                                               options.",
+            "A '/' is required between the host list and any options.",
         )));
     }
 
@@ -186,8 +184,7 @@ fn parse_user_info(user_info: &str) -> Result<(&str, &str)> {
     let (user, password) = rpartition(user_info, ":");
     if user_info.contains('@') || user.contains(':') {
         return Err(ArgumentError(String::from(
-            "':' or '@' characters in a username or password \
-                                               must be escaped according to RFC 2396.",
+            "':' or '@' characters in a username or password must be escaped according to RFC 2396.",
         )));
     }
     if user.is_empty() {
@@ -215,8 +212,7 @@ fn parse_ipv6_literal_host(entity: &str) -> Result<Host> {
         }
         None => {
             Err(ArgumentError(String::from(
-                "An IPv6 address must be enclosed in '[' and ']' \
-                                            according to RFC 2732.",
+                "An IPv6 address must be enclosed in '[' and ']' according to RFC 2732.",
             )))
         }
     }
@@ -308,8 +304,7 @@ fn split_options(opts: &str) -> Result<ConnectionOptions> {
         delim = Some(";");
     } else if opts.find('=') == None {
         return Err(ArgumentError(String::from(
-            "InvalidURI: MongoDB URI options are key=value \
-                                               pairs.",
+            "InvalidURI: MongoDB URI options are key=value pairs.",
         )));
     }
     let options = parse_options(opts, delim);

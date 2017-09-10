@@ -43,8 +43,7 @@ fn invalid_user() {
         Err(OperationError(_)) => (),
         Err(_) => {
             panic!(
-                "Expected OperationError for invalid authentication, but got some other error \
-                    instead"
+                "Expected OperationError for invalid authentication, but got some other error instead"
             )
         }
         _ => panic!("Authentication succeeded despite invalid credentials"),
@@ -96,8 +95,7 @@ fn invalid_password() {
         Err(OperationError(_)) => (),
         Err(_) => {
             panic!(
-                "Expected OperationError for invalid authentication, but got some other error \
-                    instead"
+                "Expected OperationError for invalid authentication, but got some other error instead"
             )
         }
         _ => panic!("Authentication succeeded despite invalid credentials"),
