@@ -32,8 +32,11 @@ impl Server {
                     Value::String(val) => {
                         tags.insert(key, val);
                     }
-                    _ => return Err(
-                        String::from("server must have tags that are string => string maps.")),
+                    _ => {
+                        return Err(String::from(
+                            "server must have tags that are string => string maps.",
+                        ))
+                    }
                 }
             }
         }
@@ -44,10 +47,10 @@ impl Server {
                                 "server must have a type.");
 
         Ok(Server {
-               host: connstring::parse_host(&address).expect("Failed to parse host."),
-               rtt: rtt,
-               tags: tags,
-               stype: stype,
-           })
+            host: connstring::parse_host(&address).expect("Failed to parse host."),
+            rtt: rtt,
+            tags: tags,
+            stype: stype,
+        })
     }
 }

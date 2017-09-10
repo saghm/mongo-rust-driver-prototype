@@ -16,7 +16,9 @@ impl Responses {
                                           "`responses` must be an array of arrays.");
 
             if inner_array.len() != 2 {
-                return Err(String::from("Response item must contain the host string and ismaster object."));
+                return Err(String::from(
+                    "Response item must contain the host string and ismaster object.",
+                ));
             }
 
             let host = val_or_err!(

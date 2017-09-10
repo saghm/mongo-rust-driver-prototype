@@ -4,7 +4,8 @@ use mongodb::Error;
 
 #[test]
 fn validate_write_result() {
-    let doc = doc! {
+    let doc =
+        doc! {
         "ok" => 1,
         "n" => 5,
         "nModified" => 5
@@ -16,19 +17,22 @@ fn validate_write_result() {
 
 #[test]
 fn invalidate_write_result() {
-    let err1 = doc! {
+    let err1 =
+        doc! {
         "index" => 0,
         "code" => 1054,
         "errmsg" => "Unreal error message."
     };
 
-    let err2 = doc! {
+    let err2 =
+        doc! {
         "index" => 3,
         "code" => 2105,
         "errmsg" => "Modestly real error message."
     };
 
-    let doc = doc! {
+    let doc =
+        doc! {
         "ok" => 1,
         "n" => 5,
         "nModified" => 3,
@@ -69,7 +73,8 @@ fn invalidate_write_result() {
 
 #[test]
 fn parse_write_concern_error() {
-    let doc = doc! {
+    let doc =
+        doc! {
         "code" => 1124,
         "errmsg" => "Real error message."
     };
@@ -98,7 +103,8 @@ fn parse_invalid_write_concern_error() {
 
 #[test]
 fn parse_write_error() {
-    let doc = doc! {
+    let doc =
+        doc! {
         "code" => 1054,
         "errmsg" => "Unreal error message."
     };

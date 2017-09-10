@@ -56,7 +56,8 @@ impl Arguments {
     pub fn aggregate_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
         let options = AggregateOptions::from_json(object);
 
-        let array = val_or_err!(object.get("pipeline").map(Value::clone).map(Into::into),
+        let array =
+            val_or_err!(object.get("pipeline").map(Value::clone).map(Into::into),
                                 Some(Bson::Array(arr)) => arr,
                                 "`aggregate` requires pipeline array");
 
@@ -69,7 +70,11 @@ impl Arguments {
                     out = out || doc.contains_key("$out");
                     doc
                 }
-                _ => return Err(String::from("aggregate pipeline can only contain documents")),
+                _ => {
+                    return Err(String::from(
+                        "aggregate pipeline can only contain documents",
+                    ))
+                }
             };
 
             docs.push(doc);
@@ -97,7 +102,8 @@ impl Arguments {
     }
 
     pub fn delete_from_json(object: &Map<String, Value>, many: bool) -> Result<Arguments, String> {
-        let document = val_or_err!(object.get("filter").map(Value::clone).map(Into::into),
+        let document =
+            val_or_err!(object.get("filter").map(Value::clone).map(Into::into),
                                    Some(Bson::Document(doc)) => doc,
                                    "`delete` requires document");
 
@@ -150,7 +156,9 @@ impl Arguments {
         })
     }
 
-    pub fn find_one_and_replace_from_json(object: &Map<String, Value>) -> Result<Arguments, String> {
+    pub fn find_one_and_replace_from_json(
+        object: &Map<String, Value>,
+    ) -> Result<Arguments, String> {
         let options = FindOneAndUpdateOptions::from_json(object);
 
         let filter = val_or_err!(object.get("filter").map(Value::clone).map(Into::into),
