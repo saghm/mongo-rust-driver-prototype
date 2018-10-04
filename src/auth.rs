@@ -1,19 +1,19 @@
 //! Authentication schemes.
+use bson::spec::BinarySubtype::Generic;
 use bson::Bson::{self, Binary};
 use bson::Document;
-use bson::spec::BinarySubtype::Generic;
-use CommandType::Suppressed;
-use hmac::{Hmac, Mac};
-use md5::Md5;
-use pbkdf2::pbkdf2;
-use sha1::{Sha1, Digest};
-use hex;
 use data_encoding::BASE64;
 use db::{Database, ThreadedDatabase};
 use error::Error::{DefaultError, MaliciousServerError, ResponseError};
 use error::MaliciousServerErrorType;
 use error::Result;
+use hex;
+use hmac::{Hmac, Mac};
+use md5::{Digest as Md5Digest, Md5};
+use pbkdf2::pbkdf2;
+use sha1::{Digest as Sha1Digest, Sha1};
 use textnonce::TextNonce;
+use CommandType::Suppressed;
 
 /// Handles SCRAM-SHA-1 authentication logic.
 #[derive(Debug)]
@@ -88,9 +88,9 @@ impl Authenticator {
         let response = match String::from_utf8(data) {
             Ok(string) => string,
             Err(_) => {
-                return Err(ResponseError(
-                    String::from("Invalid UTF-8 payload returned"),
-                ))
+                return Err(ResponseError(String::from(
+                    "Invalid UTF-8 payload returned",
+                )))
             }
         };
 
@@ -112,9 +112,8 @@ impl Authenticator {
             u32
         );
 
-        let rnonce_b64 = rnonce_opt.ok_or_else(|| {
-            ResponseError(String::from("Invalid rnonce returned"))
-        })?;
+        let rnonce_b64 =
+            rnonce_opt.ok_or_else(|| ResponseError(String::from("Invalid rnonce returned")))?;
 
         // Validate rnonce to make sure server isn't malicious
         if !rnonce_b64.starts_with(&initial_data.nonce[..]) {
@@ -123,30 +122,34 @@ impl Authenticator {
             ));
         }
 
-        let salt_b64 = salt_opt.ok_or_else(|| {
-            ResponseError(String::from("Invalid salt returned"))
-        })?;
+        let salt_b64 =
+            salt_opt.ok_or_else(|| ResponseError(String::from("Invalid salt returned")))?;
 
         let salt = BASE64.decode(salt_b64.as_bytes()).or_else(|e| {
-            Err(ResponseError(
-                format!("Invalid base64 salt returned: {}", e),
-            ))
+            Err(ResponseError(format!(
+                "Invalid base64 salt returned: {}",
+                e
+            )))
         })?;
 
-        let i = i_opt.ok_or_else(|| {
-            ResponseError(String::from("Invalid iteration count returned"))
-        })?;
+        let i =
+            i_opt.ok_or_else(|| ResponseError(String::from("Invalid iteration count returned")))?;
 
         // Hash password
         let hashed_password = hex::encode(Md5::digest(password.as_bytes()));
 
         // Salt password
         let mut salted_password = [0u8; SHA1_OUTPUT];
-        pbkdf2::<HmacSha1>(hashed_password.as_bytes(), &salt, i as usize, &mut salted_password);
+        pbkdf2::<HmacSha1>(
+            hashed_password.as_bytes(),
+            &salt,
+            i as usize,
+            &mut salted_password,
+        );
 
         // Compute client key
-        let mut client_key_hmac = HmacSha1::new_varkey(&salted_password)
-            .expect("HMAC can take key of any size");
+        let mut client_key_hmac =
+            HmacSha1::new_varkey(&salted_password).expect("HMAC can take key of any size");
         let client_key_bytes = b"Client Key";
         client_key_hmac.input(client_key_bytes);
         let client_key = client_key_hmac.result().code().to_owned();
@@ -160,14 +163,12 @@ impl Authenticator {
         let without_proof = format!("c=biws,r={}", rnonce_b64);
         let auth_message = format!(
             "{},{},{}",
-            initial_data.message,
-            initial_data.response,
-            without_proof
+            initial_data.message, initial_data.response, without_proof
         );
 
         // Compute client signature
-        let mut client_signature_hmac = HmacSha1::new_varkey(&stored_key)
-            .expect("HMAC can take key of any size");
+        let mut client_signature_hmac =
+            HmacSha1::new_varkey(&stored_key).expect("HMAC can take key of any size");
         client_signature_hmac.input(auth_message.as_bytes());
         let client_signature = client_signature_hmac.result().code().to_owned();
 
@@ -220,8 +221,8 @@ impl Authenticator {
         let server_key = server_key_hmac.result().code();
 
         // Compute server signature
-        let mut server_signature_hmac = HmacSha1::new_varkey(&server_key)
-            .expect("HMAC can take key of any size");
+        let mut server_signature_hmac =
+            HmacSha1::new_varkey(&server_key).expect("HMAC can take key of any size");
         server_signature_hmac.input(auth_data.message.as_bytes());
         let server_signature = server_signature_hmac.result().code();
 
@@ -233,9 +234,9 @@ impl Authenticator {
                 let payload_str = match String::from_utf8(payload.to_owned()) {
                     Ok(string) => string,
                     Err(_) => {
-                        return Err(ResponseError(
-                            String::from("Invalid UTF-8 payload returned"),
-                        ))
+                        return Err(ResponseError(String::from(
+                            "Invalid UTF-8 payload returned",
+                        )))
                     }
                 };
 

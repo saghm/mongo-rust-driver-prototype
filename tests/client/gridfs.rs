@@ -1,13 +1,13 @@
 use bson::Bson;
 
-use mongodb::{Client, ThreadedClient};
-use mongodb::coll::Collection;
 use mongodb::coll::options::{FindOptions, IndexOptions};
+use mongodb::coll::Collection;
 use mongodb::db::ThreadedDatabase;
-use mongodb::gridfs::{Store, ThreadedStore};
 use mongodb::gridfs::file::DEFAULT_CHUNK_SIZE;
+use mongodb::gridfs::{Store, ThreadedStore};
+use mongodb::{Client, ThreadedClient};
 
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, RngCore};
 use std::io::{Read, Write};
 
 fn init_gridfs(name: &str) -> (Store, Collection, Collection) {
@@ -58,9 +58,9 @@ fn put_get() {
         .find(Some(doc!{"files_id": id.clone()}), Some(opts))
         .unwrap();
 
-    let chunks = cursor.drain_current_batch().expect(
-        "Failed to get current batch",
-    );
+    let chunks = cursor
+        .drain_current_batch()
+        .expect("Failed to get current batch");
     assert_eq!(3, chunks.len());
 
     for (i, chunk) in chunks.iter().enumerate().take(3) {
